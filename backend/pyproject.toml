@@ -1,0 +1,50 @@
+[project]
+name = "lms-backend"
+version = "0.1.0"
+description = "Learning & Knowledge Suite API (FastAPI)"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.32.0",
+    "bullmq>=3.3.1",
+    "email-validator>=2.3.0",
+    "fastapi[standard]>=0.143.0",
+    "fpdf2>=2.8.9",
+    "groq>=1.7.0",
+    "openpyxl>=3.1.5",
+    "psutil>=7.2.2",
+    "psycopg[binary]>=3.3.6",
+    "pwdlib[argon2]>=0.3.1",
+    "pydantic-settings>=2.15.0",
+    "pyjwt>=2.15.1",
+    "pypdf>=6.19.0",
+    "python-docx>=1.2.0",
+    "redis>=7.4.1",
+    "segno>=1.6.6",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "structlog>=26.1.0",
+    "tzdata>=2026.5",
+]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.22.1",
+    "httpx>=0.28.1",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.10",
+]
+
+[tool.ruff]
+line-length = 130
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
+ignore = ["B008", "RUF001", "RUF002", "RUF003", "RUF012", "ASYNC240", "ASYNC109"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true

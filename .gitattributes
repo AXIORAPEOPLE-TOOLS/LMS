@@ -1,0 +1,7 @@
+# Store text files with LF in the repo (Linux CI / Docker friendly); Windows checkouts still work.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary
+*.xlsx binary
+*.ico binary

@@ -1,0 +1,26 @@
+{
+  "app": { "name": "Learning & Knowledge", "learning": "Learning", "knowledge": "Knowledge Hub" },
+  "nav": {
+    "home": "Home", "path": "My path", "learn": "Learn", "rank": "Rank", "knowledge": "Knowledge",
+    "team": "Team", "skills": "Skills", "approvals": "Approvals",
+    "adminHome": "Home", "people": "People & roles", "skillsTests": "Skills & tests", "courses": "Courses & sessions",
+    "workflows": "Workflows", "reports": "Reports & settings", "proctoring": "Proctoring review",
+    "library": "Library", "myItems": "My items", "dashboard": "Dashboard", "admin": "Admin", "switchApp": "Switch app",
+    "signOut": "Sign out", "profile": "Profile", "reminders": "My reminders", "notifications": "Messages"
+  },
+  "home": {
+    "greeting_morning": "Good morning, {{name}}", "greeting_afternoon": "Good afternoon, {{name}}", "greeting_evening": "Good evening, {{name}}",
+    "nextStep": "Your next step", "myPathway": "My pathway", "comingUp": "Coming up", "nothingComing": "Nothing scheduled. Nice and calm.",
+    "streak": "{{count}} days", "waveDone": "{{pct}}% of Wave {{wave}} done"
+  },
+  "login": {
+    "title": "Sign in", "subtitle": "Learning and company knowledge, in one place.", "email": "Work email", "password": "Password",
+    "submit": "Sign in", "demo": "Demo accounts (password Demo@1234)"
+  },
+  "common": { "save": "Save", "cancel": "Cancel", "continue": "Continue", "start": "Start", "next": "Next", "back": "Back", "close": "Close", "retry": "Try again", "loading": "Loading…", "seeAll": "See all", "search": "Search" },
+  "degraded": {
+    "limited": "Some features are in limited mode. Everything important still works.",
+    "offline": "We cannot reach the server right now. You are seeing the last loaded information.",
+    "details": "Details"
+  }
+}

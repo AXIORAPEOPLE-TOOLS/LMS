@@ -1,0 +1,26 @@
+{
+  "app": { "name": "लर्निंग और नॉलेज", "learning": "लर्निंग", "knowledge": "नॉलेज हब" },
+  "nav": {
+    "home": "होम", "path": "मेरा पाथ", "learn": "सीखें", "rank": "रैंक", "knowledge": "नॉलेज",
+    "team": "टीम", "skills": "स्किल्स", "approvals": "मंज़ूरी",
+    "adminHome": "होम", "people": "लोग और रोल", "skillsTests": "स्किल्स और टेस्ट", "courses": "कोर्स और सेशन",
+    "workflows": "वर्कफ़्लो", "reports": "रिपोर्ट और सेटिंग्स", "proctoring": "प्रॉक्टरिंग रिव्यू",
+    "library": "लाइब्रेरी", "myItems": "मेरे आइटम", "dashboard": "डैशबोर्ड", "admin": "एडमिन", "switchApp": "ऐप बदलें",
+    "signOut": "साइन आउट", "profile": "प्रोफ़ाइल", "reminders": "मेरे रिमाइंडर", "notifications": "संदेश"
+  },
+  "home": {
+    "greeting_morning": "सुप्रभात, {{name}}", "greeting_afternoon": "नमस्ते, {{name}}", "greeting_evening": "शुभ संध्या, {{name}}",
+    "nextStep": "आपका अगला कदम", "myPathway": "मेरा पाथवे", "comingUp": "आगे क्या है", "nothingComing": "अभी कुछ तय नहीं है।",
+    "streak": "{{count}} दिन", "waveDone": "वेव {{wave}} का {{pct}}% पूरा"
+  },
+  "login": {
+    "title": "साइन इन", "subtitle": "सीखना और कंपनी की जानकारी, एक ही जगह।", "email": "ऑफ़िस ईमेल", "password": "पासवर्ड",
+    "submit": "साइन इन", "demo": "डेमो अकाउंट (पासवर्ड Demo@1234)"
+  },
+  "common": { "save": "सेव करें", "cancel": "रद्द करें", "continue": "जारी रखें", "start": "शुरू करें", "next": "आगे", "back": "पीछे", "close": "बंद करें", "retry": "फिर कोशिश करें", "loading": "लोड हो रहा है…", "seeAll": "सब देखें", "search": "खोजें" },
+  "degraded": {
+    "limited": "कुछ सुविधाएँ सीमित मोड में हैं। ज़रूरी काम चलते रहेंगे।",
+    "offline": "अभी सर्वर से जुड़ नहीं पा रहे हैं। आप आख़िरी लोड की गई जानकारी देख रहे हैं।",
+    "details": "विवरण"
+  }
+}

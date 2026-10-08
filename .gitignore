@@ -1,0 +1,56 @@
+# ---- Secrets ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Python / backend ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+*.db
+*.db-journal
+*.sqlite3
+uploads/
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-store/
+.vite/
+*.tsbuildinfo
+coverage/
+
+# ---- Tests ----
+test/e2e/test-results/
+test/e2e/playwright-report/
+test/e2e/blob-report/
+test/e2e/.auth/
+test/.artifacts/
+
+# ---- Packaging (single exe) ----
+*.spec
+deploy/dist/
+
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.log
+logs/

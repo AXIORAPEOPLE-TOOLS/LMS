@@ -1,0 +1,5 @@
+# Type checker config for the editor (Pyrefly). Backend code and tests share the backend venv.
+project-includes = ["backend/app", "backend/migrations", "test/backend"]
+search-path = ["backend", "test/backend", "test/backend/knowledge"]
+# Windows path; on macOS/Linux use "backend/.venv/bin/python"
+python-interpreter = "backend/.venv/Scripts/python.exe"
