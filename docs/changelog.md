@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-10-10 — CI
+- GitHub Actions: secret scan, backend lint/tests/docs drift, PostgreSQL migrations + tests, frontend lint/build, Playwright e2e. `deploy/ci/check.sh` runs the same locally. Dependabot for uv, npm and actions.
+
 ## 2026-10-10 — Helpers for the HR steps, written answers, API call log
 - **Helpers** (Admin → Helpers), one per "AI Agent" process in LMS.pdf, each run showing every step live:
   - *Build a course*: topic, audience, goal, length (+ optional skill, expert, links) → modules with outcomes, content with examples from published company material, links, quick check, own checks and a learner trial → sent to the expert. Nothing is published before approval.

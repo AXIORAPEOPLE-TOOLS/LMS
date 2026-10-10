@@ -39,3 +39,16 @@ Never point `TEST_DATABASE_URL` at a database with real data: tests drop and rec
 See `features.md` — each feature lists its test folder. Last full run: backend **111 passed**, e2e **22 passed** (phone 360 px + desktop).
 
 E2E needs Playwright's browser once: `cd test/e2e && pnpm install && pnpm exec playwright install chromium`.
+
+## CI (`.github/workflows/ci.yml`)
+Runs on every push to `main` and every pull request:
+
+| Job | What it checks |
+|---|---|
+| Secret scan | gitleaks over the full history: no keys or passwords committed |
+| Backend | `ruff check`, `ruff format --check`, all backend tests on SQLite (includes the migration drift test), `api.md`/`data-model.md` regenerated and unchanged |
+| Backend - PostgreSQL | migrations up → down → up on PostgreSQL 17, then all backend tests on PostgreSQL (production database) |
+| Frontend | `pnpm lint`, `tsc` + `vite build`; the build is kept as an artifact |
+| End-to-end | Playwright on phone and desktop (own SQLite backend + Vite); report uploaded on failure |
+
+Same checks locally: `bash deploy/ci/check.sh` (add `--e2e` before pushing). Dependabot opens weekly update PRs.
