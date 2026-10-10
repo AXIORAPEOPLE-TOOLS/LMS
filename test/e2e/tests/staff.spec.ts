@@ -58,7 +58,14 @@ test.describe('Admin', () => {
   test('learners cannot open admin pages', async ({ page }) => {
     await signIn(page, 'asha@example.com')
     await page.goto('/admin/monitoring')
-    await expect(page).toHaveURL(/\/$/)
+    await expect(page).toHaveURL(/\/home$/)
+  })
+
+  test('learners do not see or open the Knowledge Hub', async ({ page }) => {
+    await signIn(page, 'asha@example.com')
+    await page.goto('/knowledge')
+    await expect(page).toHaveURL(/\/home$/)
+    await expect(page.getByRole('button', { name: /^Knowledge/ })).toHaveCount(0)
   })
 })
 

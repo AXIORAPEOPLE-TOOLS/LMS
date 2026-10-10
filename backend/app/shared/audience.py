@@ -1,4 +1,6 @@
-"""Resolve 'who' for bulk actions: people, a job role, a department or everyone.
+"""Resolve 'who' for bulk actions: people, a job role, a department, a skill or everyone.
+
+Choices add up (people chosen by hand + everyone matching a rule).
 
 Shared by assignments, invitations, skill test campaigns and workflows so the
 same audience picker works everywhere (golden rule: same pattern everywhere).
@@ -7,12 +9,12 @@ same audience picker works everywhere (golden rule: same pattern everywhere).
 from uuid import UUID
 
 from pydantic import model_validator
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ValidationFailedError
 from app.modules.identity.models import Department, User
-from app.modules.skills.models import JobRole
+from app.modules.skills.models import JobRole, RoleSkill, Skill
 from app.shared.schemas import Schema
 
 
@@ -20,11 +22,12 @@ class Audience(Schema):
     user_ids: list[UUID] = []
     job_role_id: UUID | None = None
     department_id: UUID | None = None
+    skill_id: UUID | None = None  # everyone whose job role needs this skill
     everyone: bool = False
 
     @model_validator(mode="after")
     def _one_choice(self) -> "Audience":
-        if not (self.user_ids or self.job_role_id or self.department_id or self.everyone):
+        if not (self.user_ids or self.job_role_id or self.department_id or self.skill_id or self.everyone):
             raise ValueError("Choose who this is for.")
         return self
 
@@ -40,7 +43,7 @@ async def resolve_audience(session: AsyncSession, audience: Audience) -> Resolve
     if audience.everyone:
         label_parts.append("Everyone")
     else:
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if audience.user_ids:
             conditions.append(User.id.in_(audience.user_ids))
             label_parts.append(f"{len(audience.user_ids)} chosen people")
@@ -56,6 +59,13 @@ async def resolve_audience(session: AsyncSession, audience: Audience) -> Resolve
                 raise ValidationFailedError("That department does not exist.")
             conditions.append(User.department_id == audience.department_id)
             label_parts.append(f"Department: {dept.name}")
+        if audience.skill_id:
+            skill = await session.get(Skill, audience.skill_id)
+            if skill is None:
+                raise ValidationFailedError("That skill does not exist.")
+            roles = select(RoleSkill.job_role_id).where(RoleSkill.skill_id == audience.skill_id)
+            conditions.append(User.job_role_id.in_(roles))
+            label_parts.append(f"Roles that need {skill.name}")
         from sqlalchemy import or_
 
         stmt = stmt.where(or_(*conditions))

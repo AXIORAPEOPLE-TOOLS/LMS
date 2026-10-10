@@ -1,7 +1,7 @@
-import { ArrowLeft, Award, CalendarClock, Captions, Check, CheckCircle2, ClipboardCheck, MapPin, Pause, Play, Search, Video, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, Captions, Check, CheckCircle2, ClipboardCheck, MapPin, Pause, Play, Search, Video, XCircle } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   useAssignments, useCompleteLesson, useCourse, useCourses, useMyTests, useRsvp, useSessions, useSimulation, useSubmitQuiz,
@@ -12,57 +12,148 @@ import { Stagger } from '@/components/motion'
 import { EASE } from '@/lib/motion-tokens'
 import { QueryState } from '@/components/SystemStatus'
 import {
-  Badge, Button, ButtonLink, Card, EmptyState, Input, Notice, PageHeader, ProgressBar, Segmented, SkeletonPage, StatusPill,
+  Badge, Button, ButtonLink, Card, EmptyState, Field, Input, Notice, PageHeader, ProgressBar, Segmented, SkeletonPage, StatusPill, Textarea,
 } from '@/components/ui'
 import { cn, fmt } from '@/lib/utils'
 
-type Tab = 'mine' | 'catalogue' | 'tests' | 'sessions'
+type Tab = 'todo' | 'browse' | 'done'
 
+/** Learn: three plain tabs. "To do" holds everything assigned to me (courses, tests, live classes). */
 export function LearnPage() {
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab) ?? 'mine'
+  const raw = params.get('tab')
+  // Old links (?tab=mine|tests|sessions|catalogue) still work.
+  const tab: Tab = raw === 'browse' || raw === 'catalogue' ? 'browse' : raw === 'done' ? 'done' : 'todo'
   return (
     <>
-      <PageHeader title="Learn" subtitle="Your courses, skill checks and live sessions."
-        actions={<ButtonLink to="/learn/certificates" variant="outline" size="sm"><Award className="size-4" />My certificates</ButtonLink>} />
-      <Segmented<Tab> className="mb-5" value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })}
-        options={[{ value: 'mine', label: 'My learning' }, { value: 'tests', label: 'Skill checks' }, { value: 'sessions', label: 'Sessions' }, { value: 'catalogue', label: 'Catalogue' }]} />
-      {tab === 'mine' && <MyLearning />}
-      {tab === 'catalogue' && <Catalogue skill={params.get('skill') ?? undefined} />}
-      {tab === 'tests' && <SkillChecks />}
-      {tab === 'sessions' && <Sessions />}
+      <PageHeader title="Learn" subtitle="What HR assigned to you, what you can pick yourself, and what you have finished." />
+      <Segmented<Tab> className="mb-6" value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })}
+        options={[{ value: 'todo', label: 'To do' }, { value: 'browse', label: 'Browse courses' }, { value: 'done', label: 'Done' }]} />
+      {tab === 'todo' && <ToDo />}
+      {tab === 'browse' && <Catalogue skill={params.get('skill') ?? undefined} />}
+      {tab === 'done' && <Done />}
     </>
   )
 }
 
-function MyLearning() {
-  const { data, isLoading, error, refetch } = useAssignments()
-  const open = data?.filter((a) => a.status !== 'completed') ?? []
-  const done = data?.filter((a) => a.status === 'completed') ?? []
+function Section({ title, count, children }: { title: string; count: number; children: ReactNode }) {
+  if (!count) return null
   return (
-    <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
-      {open.length === 0 && <EmptyState title="Nothing assigned right now" body="Pick a short course from the catalogue." action={<ButtonLink to="/learn?tab=catalogue">Browse courses</ButtonLink>} />}
-      <Stagger className="grid gap-3 sm:grid-cols-2">
-        {open.map((a) => (
-          <Link key={a.id} to={`/learn/courses/${a.course_id}`} className="block rounded-[var(--radius-card)] border border-line bg-surface p-4 transition-colors hover:border-forest-700">
-            <div className="flex items-start justify-between gap-2">
-              <b>{a.course_title}</b>
-              {a.is_overdue ? <StatusPill status="overdue" /> : a.is_mandatory ? <Badge tone="info">Mandatory</Badge> : null}
+    <section className="mb-8">
+      <h2 className="mb-3 font-sans text-[17px] font-bold">{title} <span className="font-normal text-ink-400">{count}</span></h2>
+      {children}
+    </section>
+  )
+}
+
+function ToDo() {
+  const assignments = useAssignments()
+  const tests = useMyTests()
+  const sessions = useSessions()
+  const rsvp = useRsvp()
+  const loading = assignments.isLoading || tests.isLoading || sessions.isLoading
+  const open = assignments.data?.filter((a) => a.status !== 'completed') ?? []
+  const openTests = tests.data?.filter((t) => t.status !== 'done') ?? []
+  const upcoming = sessions.data?.filter((s) => s.my_status !== 'declined') ?? []
+  if (loading) return <SkeletonPage />
+  if (!open.length && !openTests.length && !upcoming.length) {
+    return <EmptyState icon={<CheckCircle2 className="size-8" />} title="You are all caught up" body="Nothing is assigned right now. Pick a short course if you like."
+      action={<ButtonLink to="/learn?tab=browse">Browse courses</ButtonLink>} />
+  }
+  return (
+    <>
+      <Section title="Courses" count={open.length}>
+        <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {open.map((a) => (
+            <Link key={a.id} to={`/learn/courses/${a.course_id}`} className="flex h-full flex-col rounded-card border border-line bg-surface p-5 transition-colors hover:border-forest-700">
+              <div className="flex items-start justify-between gap-2">
+                <b>{a.course_title}</b>
+                {a.is_overdue ? <StatusPill status="overdue" /> : a.is_mandatory ? <Badge tone="info">Must do</Badge> : null}
+              </div>
+              <p className="mt-1 text-[13px] text-ink-600">{a.duration_minutes} minutes{a.due_on && ` · due ${fmt.shortDate(a.due_on)}`}</p>
+              <div className="mt-auto pt-4">
+                <ProgressBar size="sm" value={a.progress_pct} label={a.progress_pct ? `${a.progress_pct}% done` : 'Not started'} />
+              </div>
+            </Link>
+          ))}
+        </Stagger>
+      </Section>
+      <Section title="Tests" count={openTests.length}>
+        <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {openTests.map((t) => (
+            <Card key={t.invite_id ?? t.test.id} className="flex h-full flex-col gap-4">
+              <div className="flex-1">
+                <b>{t.test.title}</b>
+                <p className="text-[13px] text-ink-600">
+                  {t.test.question_count} questions · about {t.test.duration_minutes} minutes{t.due_on && ` · by ${fmt.shortDate(t.due_on)}`}
+                  {t.test.proctoring === 'camera' && ' · camera on'}
+                </p>
+              </div>
+              {t.status === 'in_progress' && t.attempt_id
+                ? <ButtonLink to={`/learn/tests/attempts/${t.attempt_id}`} variant="outline" block>Continue test</ButtonLink>
+                : <ButtonLink to={`/learn/tests/${t.test.id}`} variant="outline" block>Start test</ButtonLink>}
+            </Card>
+          ))}
+        </Stagger>
+      </Section>
+      <Section title="Live classes" count={upcoming.length}>
+        <Stagger className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {upcoming.map((s) => (
+            <Card key={s.id} className="flex h-full flex-col">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <b>{s.title}</b>
+                {s.my_status === 'pending' ? <Badge tone="warn">Please reply</Badge> : s.my_status === 'accepted' ? <Badge tone="ok">Going</Badge> : null}
+              </div>
+              <p className="text-[13px] text-ink-600">{fmt.dayTime(s.starts_at)}{s.trainer_name && ` · with ${s.trainer_name}`}</p>
+              {s.location && <p className="flex items-center gap-1 text-[13px] text-ink-600"><MapPin className="size-3.5" />{s.location}</p>}
+              <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                {s.my_status !== 'accepted' && <Button size="sm" variant="outline" onClick={() => rsvp.mutate({ sessionId: s.id, accept: true })}>I will attend</Button>}
+                {s.my_status === 'accepted' && s.meeting_link && <a className="inline-flex h-9 items-center px-1 text-sm font-semibold text-forest-700 underline" href={s.meeting_link} target="_blank" rel="noreferrer">Join link</a>}
+                <Button size="sm" variant="ghost" onClick={() => rsvp.mutate({ sessionId: s.id, accept: false })}>Can't attend</Button>
+              </div>
+            </Card>
+          ))}
+        </Stagger>
+      </Section>
+    </>
+  )
+}
+
+function Done() {
+  const assignments = useAssignments()
+  const tests = useMyTests()
+  if (assignments.isLoading || tests.isLoading) return <SkeletonPage />
+  const courses = assignments.data?.filter((a) => a.status === 'completed') ?? []
+  const passedTests = tests.data?.filter((t) => t.status === 'done') ?? []
+  return (
+    <>
+      <Link to="/learn/certificates" className="mb-8 flex items-center gap-4 rounded-card border border-gold-500/40 bg-linear-to-r from-gold-100/70 to-surface p-5 hover:border-gold-500">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-gold-500 text-white"><Award className="size-5" /></span>
+        <span className="flex-1"><b className="block">My certificates</b><span className="text-sm text-ink-600">Download or share them.</span></span>
+        <ArrowRight className="size-5 text-ink-400" />
+      </Link>
+      {!courses.length && !passedTests.length && <EmptyState title="Nothing finished yet" body="Finished courses and tests show here." />}
+      <Section title="Finished courses" count={courses.length}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {courses.map((a) => (
+            <Link key={a.id} to={`/learn/courses/${a.course_id}`} className="flex items-center gap-3 rounded-card border border-line bg-surface p-4 text-sm hover:border-forest-700">
+              <CheckCircle2 className="size-5 shrink-0 text-ok-600" /><b className="truncate">{a.course_title}</b>
+            </Link>
+          ))}
+        </div>
+      </Section>
+      <Section title="Tests taken" count={passedTests.length}>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {passedTests.map((t) => (
+            <div key={t.invite_id ?? t.test.id} className="flex items-center gap-3 rounded-card border border-line bg-surface p-4 text-sm">
+              <ClipboardCheck className="size-5 shrink-0 text-forest-700" />
+              <b className="min-w-0 flex-1 truncate">{t.test.title}</b>
+              {t.last_level != null && <Badge tone="ok">Level {t.last_level}</Badge>}
             </div>
-            <p className="mt-1 text-[13px] text-ink-600">{a.duration_minutes} minutes{a.due_on && ` · due ${fmt.shortDate(a.due_on)}`}</p>
-            <ProgressBar className="mt-3" size="sm" value={a.progress_pct} label={`${a.progress_pct}% done`} />
-          </Link>
-        ))}
-      </Stagger>
-      {done.length > 0 && (
-        <details className="mt-6">
-          <summary className="cursor-pointer text-sm font-semibold text-forest-700">Completed ({done.length})</summary>
-          <ul className="mt-3 space-y-2">
-            {done.map((a) => <li key={a.id} className="flex items-center gap-2 text-sm"><CheckCircle2 className="size-4 text-ok-600" />{a.course_title}</li>)}
-          </ul>
-        </details>
-      )}
-    </QueryState>
+          ))}
+        </div>
+      </Section>
+    </>
   )
 }
 
@@ -79,7 +170,7 @@ function Catalogue({ skill }: { skill?: string }) {
         {data?.length === 0 && <EmptyState title="No courses match" body="Try a shorter word." />}
         <Stagger className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {data?.map((c) => (
-            <Link key={c.id} to={`/learn/courses/${c.id}`} className="flex h-full flex-col rounded-[var(--radius-card)] border border-line bg-surface p-4 transition-colors hover:border-forest-700">
+            <Link key={c.id} to={`/learn/courses/${c.id}`} className="flex h-full flex-col rounded-card border border-line bg-surface p-4 transition-colors hover:border-forest-700">
               <div className="flex flex-wrap gap-1.5">
                 {c.kind === 'certification' && <Badge tone="gold">Certificate</Badge>}
                 {c.is_mandatory && <Badge tone="info">Mandatory</Badge>}
@@ -93,64 +184,6 @@ function Catalogue({ skill }: { skill?: string }) {
         </Stagger>
       </QueryState>
     </>
-  )
-}
-
-function SkillChecks() {
-  const { data, isLoading, error, refetch } = useMyTests()
-  return (
-    <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
-      {data?.length === 0 && <EmptyState icon={<ClipboardCheck className="size-8" />} title="No skill checks waiting" body="When your role needs a check, it shows up here." />}
-      <Stagger className="space-y-2.5">
-        {data?.map((t) => (
-          <Card key={t.invite_id ?? t.test.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <b>{t.test.title}</b>
-              <p className="text-[13px] text-ink-600">
-                {t.test.question_count} questions · about {t.test.duration_minutes} minutes{t.due_on && ` · by ${fmt.shortDate(t.due_on)}`}
-                {t.test.proctoring === 'camera' && ' · supervised'}
-              </p>
-            </div>
-            {t.status === 'done' ? (
-              <span className="flex items-center gap-2 text-sm"><StatusPill status="done" />{t.last_level != null && `Level ${t.last_level}`}</span>
-            ) : t.status === 'in_progress' && t.attempt_id ? (
-              <ButtonLink to={`/learn/tests/attempts/${t.attempt_id}`}>Continue</ButtonLink>
-            ) : (
-              <ButtonLink to={`/learn/tests/${t.test.id}`}>Start</ButtonLink>
-            )}
-          </Card>
-        ))}
-      </Stagger>
-    </QueryState>
-  )
-}
-
-function Sessions() {
-  const { data, isLoading, error, refetch } = useSessions()
-  const rsvp = useRsvp()
-  return (
-    <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
-      {data?.length === 0 && <EmptyState icon={<CalendarClock className="size-8" />} title="No live sessions coming up" />}
-      <Stagger className="space-y-2.5">
-        {data?.map((s) => (
-          <Card key={s.id}>
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <b>{s.title}</b>
-                <p className="text-[13px] text-ink-600">{fmt.dayTime(s.starts_at)}{s.trainer_name && ` · with ${s.trainer_name}`}</p>
-                {s.location && <p className="flex items-center gap-1 text-[13px] text-ink-600"><MapPin className="size-3.5" />{s.location}</p>}
-              </div>
-              {s.my_status && <StatusPill status={s.my_status} label={s.my_status === 'pending' ? 'Please reply' : undefined} />}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {s.my_status !== 'accepted' && <Button size="sm" onClick={() => rsvp.mutate({ sessionId: s.id, accept: true })}>Accept</Button>}
-              {s.my_status !== 'declined' && <Button size="sm" variant="outline" onClick={() => rsvp.mutate({ sessionId: s.id, accept: false })}>Decline</Button>}
-              {s.meeting_link && s.my_status === 'accepted' && <a className="inline-flex h-9 items-center px-3 text-sm font-semibold text-forest-700 underline" href={s.meeting_link} target="_blank" rel="noreferrer">Join link</a>}
-            </div>
-          </Card>
-        ))}
-      </Stagger>
-    </QueryState>
   )
 }
 
@@ -218,7 +251,7 @@ function CompletedCard({ course }: { course: CourseDetail }) {
       <h1 className="mt-3 text-2xl">You finished “{course.title}”</h1>
       <p className="mt-1 text-ink-600">{course.kind === 'certification' ? 'Your certificate is ready.' : 'Nice work. Your next step is on the home screen.'}</p>
       <div className="mt-5 flex justify-center gap-2">
-        <ButtonLink to="/">Back to home</ButtonLink>
+        <ButtonLink to="/home">Back to home</ButtonLink>
         {course.kind === 'certification' && <ButtonLink to="/learn/certificates" variant="outline">My certificates</ButtonLink>}
       </div>
     </Card>
@@ -265,7 +298,7 @@ function CaptionedPlayer({ lesson }: { lesson: Lesson }) {
   const caption = [...lines].reverse().find((c) => c.at <= seconds)?.text ?? lines[0]?.text ?? lesson.summary
   return (
     <div>
-      <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-[var(--radius-card)] bg-ink-900">
+      <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-card bg-ink-900">
         {lesson.media_url ? (
           <video src={lesson.media_url} controls className="h-full w-full" />
         ) : (
@@ -319,7 +352,7 @@ function Simulation({ lesson, onDone }: { lesson: Lesson; onDone: () => void }) 
       </div>
       <p className="mt-1 text-ink-600">Step {Math.min(order.length + 1, scenario.steps.length)} of {scenario.steps.length}: tap the steps in the right order.</p>
       {mode === 'ar' && !arAvailable && <Notice tone="warn" className="mt-3">This phone does not support AR. Simple mode works the same way.</Notice>}
-      <div className={cn('relative mt-4 aspect-[4/3] overflow-hidden rounded-[var(--radius-card)]', mode === 'ar' ? 'bg-[#b8c6c0]' : 'bg-[#dde5e1]')}>
+      <div className={cn('relative mt-4 aspect-4/3 overflow-hidden rounded-card', mode === 'ar' ? 'bg-[#b8c6c0]' : 'bg-[#dde5e1]')}>
         {scenario.image && <img src={scenario.image} alt="" className="absolute inset-0 h-full w-full object-cover" />}
         <div className="absolute inset-[18%] rounded-xl bg-[#b0bfb8]" aria-hidden />
         {scenario.steps.map((step, i) => {
@@ -361,50 +394,80 @@ function Simulation({ lesson, onDone }: { lesson: Lesson; onDone: () => void }) 
 function Quiz({ course }: { course: CourseDetail }) {
   const submit = useSubmitQuiz(course.id)
   const navigate = useNavigate()
-  const [answers, setAnswers] = useState<Record<string, number>>({})
+  const [answers, setAnswers] = useState<Record<string, number | string>>({})
   const [index, setIndex] = useState(0)
   const { data: full } = useCourseQuestions(course)
   const questions = full ?? []
   const result = submit.data
   if (!questions.length) return <SkeletonPage />
-  if (result) {
+  if (result?.under_review) {
     return (
-      <Card>
+      <Card className="mx-auto max-w-xl text-center">
+        <h1 className="text-2xl">Thanks, your answers are in</h1>
+        <p className="mt-3 text-ink-600">A person is checking your written answers. You will get a message with your result, usually within a day.</p>
+        <ButtonLink to="/learn" size="lg" block className="mt-6">Back to Learn</ButtonLink>
+      </Card>
+    )
+  }
+  if (result) {
+    const restart = () => { submit.reset(); setAnswers({}); setIndex(0) }
+    const feedback = result.results.filter((r) => r.feedback)
+    return (
+      <Card className="mx-auto max-w-xl text-center">
         <h1 className="text-2xl">{result.passed ? 'You passed' : 'Not quite yet'}</h1>
-        <p className="mt-1 text-ink-600">Score {result.score} of 100{result.pass_mark && ` · pass mark ${result.pass_mark}`}</p>
-        <ul className="mt-5 space-y-3">
-          {result.results.map((r, i) => (
-            <li key={r.question_id} className="rounded-xl border border-line p-3 text-sm">
-              <p className="flex items-start gap-2 font-semibold">{r.correct ? <Check className="mt-0.5 size-4 shrink-0 text-ok-600" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-bad-600" />}{questions[i]?.text}</p>
-              {!r.correct && <p className="mt-1 pl-6 text-ink-600">Right answer: {questions[i]?.options[r.right_index]}. {r.reason}</p>}
-            </li>
-          ))}
-        </ul>
-        <Button size="lg" block className="mt-5" onClick={() => (result.passed ? navigate('/') : (submit.reset(), setAnswers({}), setIndex(0)))}>
-          {result.passed ? 'Back to home' : 'Try again'}
-        </Button>
+        <p className="mt-3 font-serif text-5xl font-bold text-forest-800 tabular">{result.score}<span className="text-2xl text-ink-400"> / 100</span></p>
+        <p className="mt-2 text-ink-600">{result.correct_count} of {result.total} right · pass mark {result.pass_mark}</p>
+        {!result.passed && result.attempts_left !== null && (
+          <p className="mt-1 text-sm text-ink-600">{result.attempts_left > 0 ? `${fmt.plural(result.attempts_left, 'try', 'tries')} left` : 'No tries left. Ask your manager to reopen it.'}</p>
+        )}
+        {feedback.length > 0 && (
+          <ul className="mt-4 space-y-2 text-left text-sm">
+            {feedback.map((r) => <li key={r.question_id} className="rounded-xl bg-canvas p-3"><b>{r.marks} of {r.max_marks} marks.</b> {r.feedback}</li>)}
+          </ul>
+        )}
+        {result.passed ? (
+          <Button size="lg" block className="mt-6" onClick={() => navigate('/home')}>Back to home</Button>
+        ) : result.can_retake ? (
+          <Button size="lg" block className="mt-6" onClick={restart}>Restart quiz</Button>
+        ) : (
+          <ButtonLink to="/learn" size="lg" block className="mt-6">Back to Learn</ButtonLink>
+        )}
       </Card>
     )
   }
   const q = questions[index]
   const last = index === questions.length - 1
+  const written = q.kind === 'written'
+  const answered = written ? String(answers[q.id] ?? '').trim().length >= 3 : answers[q.id] !== undefined
   return (
     <Card>
-      <p className="text-sm text-ink-600">Question {index + 1} of {questions.length}</p>
+      <p className="text-sm text-ink-600">
+        Question {index + 1} of {questions.length}
+        {course.quiz_time_limit_minutes ? ` · take about ${course.quiz_time_limit_minutes} minutes in all` : ''}
+      </p>
       <ProgressBar className="mt-2" size="sm" tone="forest" value={((index + 1) / questions.length) * 100} />
       <h2 className="mt-5 font-sans text-lg font-bold">{q.text}</h2>
-      <div className="mt-4 space-y-2.5" role="radiogroup">
-        {q.options.map((option, i) => (
-          <button key={i} role="radio" aria-checked={answers[q.id] === i} onClick={() => setAnswers({ ...answers, [q.id]: i })}
-            className={cn('flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-[15px] transition-colors',
-              answers[q.id] === i ? 'border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
-            <span className={cn('size-5 shrink-0 rounded-full border-2', answers[q.id] === i ? 'border-forest-700 bg-forest-700 shadow-[inset_0_0_0_3px_white]' : 'border-line')} />
-            {option}
-          </button>
-        ))}
+      {written ? (
+        <Field label="Your answer" hint="A few lines in your own words. Spelling does not matter." className="mt-4">
+          <Textarea rows={5} value={String(answers[q.id] ?? '')} onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })} />
+        </Field>
+      ) : (
+        <div className="mt-4 space-y-2.5" role="radiogroup">
+          {q.options.map((option, i) => (
+            <button key={i} role="radio" aria-checked={answers[q.id] === i} onClick={() => setAnswers({ ...answers, [q.id]: i })}
+              className={cn('flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-[15px] transition-colors',
+                answers[q.id] === i ? 'border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
+              <span className={cn('size-5 shrink-0 rounded-full border-2', answers[q.id] === i ? 'border-forest-700 bg-forest-700 shadow-[inset_0_0_0_3px_white]' : 'border-line')} />
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="mt-6 flex gap-2">
+        {index > 0 && <Button variant="ghost" size="lg" onClick={() => setIndex(index - 1)}>Back</Button>}
+        <Button size="lg" block disabled={!answered} loading={submit.isPending}
+          onClick={() => (last ? submit.mutate(answers) : setIndex(index + 1))}>{last ? 'See my result' : 'Next'}</Button>
       </div>
-      <Button size="lg" block className="mt-6" disabled={answers[q.id] === undefined} loading={submit.isPending}
-        onClick={() => (last ? submit.mutate(answers) : setIndex(index + 1))}>{last ? 'See my result' : 'Next'}</Button>
     </Card>
   )
 }

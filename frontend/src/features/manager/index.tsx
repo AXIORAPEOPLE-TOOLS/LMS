@@ -128,7 +128,7 @@ export function TeamSkillsPage() {
 export function ApprovalsPage() {
   const { data, isLoading, error, refetch } = useTeam()
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <PageHeader title="Approvals" subtitle="Pathways and practise tasks waiting for you." />
       <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
         {data?.approvals.length === 0 ? <EmptyState title="Nothing to approve" body="You are all caught up." /> : data && <Card><ApprovalList approvals={data.approvals} /></Card>}
@@ -141,17 +141,17 @@ export function PersonPage() {
   const { id } = useParams()
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['person-pathway', id], queryFn: () => api.get<Pathway | null>(`/users/${id}/pathway`) })
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <Link to="/team" className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-forest-700"><ArrowLeft className="size-4" />Team</Link>
       <QueryState isLoading={isLoading} error={error} hasData={data !== undefined} skeleton={<SkeletonPage />} onRetry={refetch}>
         {data === null && <EmptyState title="No pathway yet" body="It is built once their skill checks are done." />}
         {data && (
           <>
             <PageHeader title="Pathway" subtitle={`${data.progress_pct}% done · ${data.total_waves} waves`} tag={<Badge className="mb-2">{data.status.replace('_', ' ')}</Badge>} />
-            <div className="space-y-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {data.waves.map((w) => (
                 <Card key={w.number}>
-                  <div className="flex justify-between"><b>Wave {w.number}</b><span className="text-sm text-ink-600">{w.status}</span></div>
+                  <div className="flex justify-between"><b>Stage {w.number}</b><span className="text-sm text-ink-600">{w.status}</span></div>
                   <ProgressBar className="mt-2" size="sm" value={w.progress_pct} />
                   <ul className="mt-3 space-y-1 text-sm">
                     {w.items.map((i) => <li key={i.id} className="flex justify-between"><span>{i.skill_name}</span><span className="text-ink-600">{i.step}{i.waiting_for_signoff && ' · waiting for you'}</span></li>)}

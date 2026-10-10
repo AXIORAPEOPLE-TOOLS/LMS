@@ -18,7 +18,7 @@ export const useKHome = () => useQuery({ queryKey: k.home, queryFn: () => api.ge
 export const useLibrary = (filters: Record<string, string | undefined>) =>
   useQuery({ queryKey: k.library(filters), queryFn: () => api.get<KLibrary>('/knowledge/library', filters), placeholderData: (prev) => prev })
 export const useKItem = (id?: UUID) => useQuery({ queryKey: k.item(id ?? ''), enabled: !!id, queryFn: () => api.get<KItemDetail>(`/knowledge/items/${id}`) })
-export const useKMyItems = () => useQuery({ queryKey: k.myItems, queryFn: () => api.get<KMyItems>('/knowledge/my-items') })
+export const useKMyItems = (enabled = true) => useQuery({ queryKey: k.myItems, enabled, queryFn: () => api.get<KMyItems>('/knowledge/my-items') })
 export const useKSearch = (q: string) =>
   useQuery({ queryKey: ['k', 'search', q], enabled: q.trim().length > 1, queryFn: () => api.get<{ item: KItem; snippet: string }[]>('/knowledge/search', { q }) })
 export const useKHistory = (id?: UUID) => useQuery({ queryKey: ['k', 'history', id], enabled: !!id, queryFn: () => api.get<KHistoryEntry[]>(`/knowledge/items/${id}/history`) })

@@ -1,16 +1,15 @@
-import { ArrowRight, BarChart3, CalendarPlus, ClipboardCheck, FileUp, GraduationCap, Upload, UserPlus } from 'lucide-react'
+import { ArrowRight, BarChart3, CalendarPlus, ClipboardCheck, FileUp, GraduationCap, ListChecks, Upload, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import {
-  useAdminHome, useAdminTests, useAssign, useAssignPreview, useCampaignPreview, useCommitUpload, useJobRoles, usePreviewUpload,
+  useAdminHome, useAdminTests, useCampaignPreview, useCommitUpload, useJobRoles, usePreviewUpload,
   useRoleDetail, useSendCampaign, useSkillRanking, useSkills, type UploadRow,
 } from '@/api/admin'
-import { useCourses } from '@/api/learner'
 import type { Audience } from '@/api/types'
 import { Stagger } from '@/components/motion'
 import { QueryState } from '@/components/SystemStatus'
 import {
-  Badge, Button, Card, Dialog, EmptyState, Field, Input, LevelDots, Notice, PageHeader, SectionTitle, Select, SkeletonPage, Stat, Toggle,
+  Badge, Button, Card, EmptyState, Field, Input, LevelDots, Notice, PageHeader, SectionTitle, Select, SkeletonPage, Stat,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -21,9 +20,9 @@ import { AudiencePicker } from './shared'
 export function AdminHomePage() {
   const { data, isLoading, error, refetch } = useAdminHome()
   const navigate = useNavigate()
-  const [assignOpen, setAssignOpen] = useState(false)
   const actions = [
-    { title: 'Assign training', sub: 'to people or a role', icon: UserPlus, onClick: () => setAssignOpen(true), primary: true },
+    { title: 'Assign training', sub: 'by skill or by name', icon: UserPlus, onClick: () => navigate('/admin/assign'), primary: true },
+    { title: 'Training tracker', sub: 'who started, passed, is late', icon: ListChecks, onClick: () => navigate('/admin/training') },
     { title: 'Schedule a session', sub: 'and send invitations', icon: CalendarPlus, onClick: () => navigate('/admin/courses?tab=sessions') },
     { title: 'Draft a course', sub: 'from an SOP or document', icon: GraduationCap, onClick: () => navigate('/admin/courses/new') },
     { title: 'Run a skill test', sub: 'for a role or team', icon: ClipboardCheck, onClick: () => navigate('/admin/skills') },
@@ -35,7 +34,7 @@ export function AdminHomePage() {
       <Stagger className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {actions.map((a) => (
           <button key={a.title} onClick={a.onClick}
-            className={cn('flex h-full flex-col rounded-[var(--radius-card)] border p-4 text-left transition-colors',
+            className={cn('flex h-full flex-col rounded-card border p-4 text-left transition-colors',
               a.primary ? 'on-dark border-transparent bg-forest-700 text-white hover:bg-forest-800' : 'border-line bg-surface hover:border-forest-700')}>
             <a.icon className={cn('size-5', a.primary ? 'text-gold-500' : 'text-forest-700')} />
             <b className="mt-3">{a.title}</b>
@@ -57,7 +56,7 @@ export function AdminHomePage() {
               <Card>
                 <SectionTitle>Needs attention</SectionTitle>
                 {data.attention.length === 0 ? <p className="text-sm text-ink-600">Nothing urgent. Good work.</p> : (
-                  <ul className="space-y-2.5">
+                  <ul className="scroll-panel max-h-80 space-y-2.5 pr-1">
                     {data.attention.map((a) => <li key={a.text}><Link to={a.href} className="flex items-center justify-between gap-2 text-sm hover:text-forest-700">• {a.text}<ArrowRight className="size-4 shrink-0" /></Link></li>)}
                   </ul>
                 )}
@@ -65,7 +64,7 @@ export function AdminHomePage() {
               <Card>
                 <SectionTitle>Content to create next</SectionTitle>
                 {data.content_gaps.length === 0 ? <p className="text-sm text-ink-600">Every skill gap has a course.</p> : (
-                  <ul className="space-y-2.5 text-sm">{data.content_gaps.map((g) => <li key={g.skill_id}>• {g.text}</li>)}</ul>
+                  <ul className="scroll-panel max-h-80 space-y-2.5 pr-1 text-sm">{data.content_gaps.map((g) => <li key={g.skill_id}>• {g.text}</li>)}</ul>
                 )}
                 <Button variant="outline" className="mt-4" onClick={() => navigate('/admin/courses/new')}><FileUp className="size-4" />Draft from a document</Button>
               </Card>
@@ -73,57 +72,7 @@ export function AdminHomePage() {
           </>
         )}
       </QueryState>
-      <AssignTrainingDialog open={assignOpen} onOpenChange={setAssignOpen} />
     </>
-  )
-}
-
-export function AssignTrainingDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const courses = useCourses()
-  const [courseId, setCourseId] = useState('')
-  const [audience, setAudience] = useState<Audience>({})
-  const [due, setDue] = useState('')
-  const [mandatory, setMandatory] = useState(false)
-  const preview = useAssignPreview()
-  const assign = useAssign()
-  const undoToast = useUndoToast()
-  const body = { course_id: courseId, audience, due_on: due || undefined, is_mandatory: mandatory }
-  const ready = !!courseId && audienceChosen(audience)
-  const close = () => { onOpenChange(false); preview.reset() }
-  return (
-    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : close())} title="Assign training" description="You will see a preview before anything is sent."
-      footer={preview.data ? (
-        <>
-          <Button variant="outline" onClick={() => preview.reset()}>Back</Button>
-          <Button loading={assign.isPending} disabled={preview.data.new_people === 0}
-            onClick={() => assign.mutate(body, { onSuccess: (r) => { undoToast(r, `Assigned "${preview.data!.course_title}"`); close() } })}>
-            Send to {preview.data.new_people} people
-          </Button>
-        </>
-      ) : <Button disabled={!ready} loading={preview.isPending} onClick={() => preview.mutate(body)}>Preview</Button>}>
-      {preview.data ? (
-        <div className="space-y-3">
-          <Notice>
-            <b>{preview.data.course_title}</b> → {preview.data.audience_label}<br />
-            {preview.data.new_people} new{preview.data.already_assigned > 0 && ` · ${preview.data.already_assigned} already have it`}
-          </Notice>
-          {preview.data.sample_names.length > 0 && <p className="text-sm text-ink-600">Including {preview.data.sample_names.join(', ')}</p>}
-          <Card className="bg-canvas text-sm"><p className="text-[12px] font-semibold text-ink-600">Message preview</p>{preview.data.message_preview}</Card>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <Field label="Course">
-            <Select value={courseId} onChange={(e) => setCourseId(e.target.value)}>
-              <option value="">Choose a course</option>
-              {courses.data?.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-            </Select>
-          </Field>
-          <AudiencePicker value={audience} onChange={setAudience} />
-          <Field label="Due date (optional)"><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
-          <Toggle checked={mandatory} onChange={setMandatory} label="Mandatory" hint="Shows in compliance reports." />
-        </div>
-      )}
-    </Dialog>
   )
 }
 

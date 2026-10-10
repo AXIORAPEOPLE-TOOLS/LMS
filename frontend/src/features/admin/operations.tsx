@@ -49,7 +49,7 @@ export function WorkflowsPage() {
             <Stagger className="space-y-2">
               {data.workflows.map((w) => (
                 <div key={w.id} onClick={() => setSelectedId(w.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setSelectedId(w.id)}
-                  className={cn('flex cursor-pointer flex-col gap-2 rounded-[var(--radius-card)] border bg-surface p-3 sm:flex-row sm:items-center sm:justify-between',
+                  className={cn('flex cursor-pointer flex-col gap-2 rounded-card border bg-surface p-3 sm:flex-row sm:items-center sm:justify-between',
                     selected.id === w.id ? 'border-2 border-forest-700 bg-forest-50' : 'border-line')}>
                   <b className="text-[15px]">{w.name}</b>
                   <div className="inline-flex rounded-lg bg-canvas p-0.5" onClick={(e) => e.stopPropagation()}>

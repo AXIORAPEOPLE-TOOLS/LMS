@@ -11,16 +11,32 @@ Admin        ✓     ✓      ✓       ✓       ✓
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import ColumnElement, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError, PermissionDeniedError
 from app.modules.identity.models import User
-from app.modules.knowledge.models import KnowledgeAccess, KnowledgeItem, Visibility
+from app.modules.knowledge.models import KnowledgeAccess, KnowledgeCategory, KnowledgeItem, Visibility
 
 
 def is_knowledge_admin(user: User) -> bool:
     return user.has_role("knowledge_admin", "admin")
+
+
+# Records staff: these roles, plus anyone who owns, backs up or heads part of the Hub.
+HUB_ROLES = ("knowledge_admin", "admin", "function_head", "manager")
+
+
+async def can_open_hub(session: AsyncSession, user: User) -> bool:
+    """The Knowledge Hub holds company records; plain learners do not see it."""
+    if user.has_role(*HUB_ROLES):
+        return True
+    owns = await session.scalar(
+        select(KnowledgeItem.id).where(or_(KnowledgeItem.owner_id == user.id, KnowledgeItem.backup_owner_id == user.id)).limit(1)
+    )
+    if owns:
+        return True
+    return bool(await session.scalar(select(KnowledgeCategory.id).where(KnowledgeCategory.head_id == user.id).limit(1)))
 
 
 @dataclass(frozen=True)
@@ -77,10 +93,10 @@ class KnowledgePolicy:
             raise PermissionDeniedError("You do not have access to this item yet. You can ask the owner.")
         return item, rights
 
-    def readable_filter(self, user: User):  # type: ignore[no-untyped-def]
+    def readable_filter(self, user: User) -> ColumnElement[bool]:
         """SQL condition for 'items this person may see' (used by search and the Library)."""
         if is_knowledge_admin(user):
-            return True
+            return true()
         granted = select(KnowledgeAccess.item_id).where(
             or_(
                 (KnowledgeAccess.principal_type == "user") & (KnowledgeAccess.principal_id == user.id),

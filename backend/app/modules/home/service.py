@@ -80,7 +80,7 @@ class HomeService:
         coming: list[ComingUpItem] = [
             ComingUpItem(
                 kind="session",
-                title=f"Live session: {live.title}",
+                title=f"Live class: {live.title}",
                 detail=f"{live.starts_at:%a %H:%M} · {'You accepted' if status == 'accepted' else 'Please reply'}",
                 href=f"/learn/sessions/{live.id}",
                 at=live.starts_at,
@@ -94,7 +94,7 @@ class HomeService:
             coming.append(
                 ComingUpItem(
                     kind="skill_check",
-                    title=f"Skill check: {test.title}",
+                    title=f"Test: {test.title}",
                     detail=f"{test.duration_minutes} min{due}",
                     href=f"/learn/tests/{test.id}",
                     due_on=invite.due_on,
@@ -153,7 +153,7 @@ class HomeService:
             due = f" · by {invite.due_on:%d %b}" if invite.due_on else ""
             return NextStep(
                 kind="skill_check",
-                title=f"Skill check: {test.title}",
+                title=f"Test: {test.title}",
                 detail=f"About {test.duration_minutes} minutes{due}",
                 action_label="Start",
                 href=f"/learn/tests/{test.id}",

@@ -11,7 +11,7 @@
   "home": {
     "greeting_morning": "सुप्रभात, {{name}}", "greeting_afternoon": "नमस्ते, {{name}}", "greeting_evening": "शुभ संध्या, {{name}}",
     "nextStep": "आपका अगला कदम", "myPathway": "मेरा पाथवे", "comingUp": "आगे क्या है", "nothingComing": "अभी कुछ तय नहीं है।",
-    "streak": "{{count}} दिन", "waveDone": "वेव {{wave}} का {{pct}}% पूरा"
+    "streak": "{{count}} दिन", "waveDone": "चरण {{wave}} का {{pct}}% पूरा"
   },
   "login": {
     "title": "साइन इन", "subtitle": "सीखना और कंपनी की जानकारी, एक ही जगह।", "email": "ऑफ़िस ईमेल", "password": "पासवर्ड",

@@ -14,6 +14,8 @@ from app.modules.identity.schemas import (
     MeOut,
     PersonOut,
     PreferencesUpdate,
+    SignupIn,
+    SignupOptionsOut,
     TokenResponse,
     UploadCommitIn,
     UploadCommitOut,
@@ -32,6 +34,17 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(data: LoginRequest, session: SessionDep) -> TokenResponse:
     return TokenResponse(access_token=await AuthService(session).login(data.email, data.password))
+
+
+@router.get("/auth/signup-options", response_model=SignupOptionsOut)
+async def signup_options(session: SessionDep) -> SignupOptionsOut:
+    """Public: whether sign-up is on, and the job roles / departments to pick from."""
+    return await AuthService(session).signup_options()
+
+
+@router.post("/auth/signup", response_model=TokenResponse, status_code=201)
+async def signup(data: SignupIn, session: SessionDep) -> TokenResponse:
+    return TokenResponse(access_token=await AuthService(session).signup(data))
 
 
 @router.post("/auth/token", response_model=TokenResponse, include_in_schema=False)

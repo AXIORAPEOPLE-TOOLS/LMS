@@ -47,6 +47,7 @@ class User(IdMixin, TimestampMixin, Base):
     )
     manager_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     joined_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)  # for WhatsApp; optional
 
     # Personal preferences (L-10 My reminders, L-09 privacy on boards).
     locale: Mapped[str] = mapped_column(String(8), default="en")

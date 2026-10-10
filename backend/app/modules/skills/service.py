@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError
@@ -135,6 +136,7 @@ class SkillsService:
         levels = await self.levels.for_user(user.id)
         skill_ids = list(set(required) | set(levels))
         skills = await self.skills.by_ids(skill_ids)
+        training = await self._training_by_skill(user.id)
         out: list[MySkillOut] = []
         for skill_id in skill_ids:
             skill = skills.get(skill_id)
@@ -156,9 +158,33 @@ class SkillsService:
                     out_of=rank.out_of if rank else None,
                     top_percent=rank.top_percent if rank else None,
                     assessed_at=record.assessed_at if record else None,
+                    required_by_role=req is not None,
+                    training=training.get(skill_id, "none"),
+                    proven=bool(record and record.assessed_at and req is not None and record.level >= req),
                 )
             )
         return sorted(out, key=lambda s: (-s.gap, s.skill_name))
+
+    async def _training_by_skill(self, user_id: UUID) -> dict[UUID, str]:
+        """Most advanced training state per skill, from the person's course assignments."""
+        from app.modules.learning.models import Assignment, Course  # late import: learning depends on skills
+
+        rank = {"assigned": 1, "in_progress": 2, "course_done": 3}
+        rows = (
+            await self.session.execute(
+                select(Course.skill_id, Assignment.status, Assignment.progress_pct)
+                .join(Course, Course.id == Assignment.course_id)
+                .where(Assignment.user_id == user_id, Course.skill_id.is_not(None))
+            )
+        ).all()
+        out: dict[UUID, str] = {}
+        for skill_id, status, progress in rows:
+            state = (
+                "course_done" if status == "completed" else "in_progress" if progress or status == "in_progress" else "assigned"
+            )
+            if rank[state] > rank.get(out.get(skill_id, ""), 0):
+                out[skill_id] = state
+        return out
 
     async def _rank_of(self, user_id: UUID, skill_id: UUID) -> rules.RankEntry | None:
         entries = rules.stack_rank((sl.user_id, sl.score) for sl in await self.levels.for_skill(skill_id) if sl.score is not None)

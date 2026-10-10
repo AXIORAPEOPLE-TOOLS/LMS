@@ -15,9 +15,9 @@ class Hub:
     support_cat: KnowledgeCategory
     support_sops: KnowledgeCategory
     hr_cat: KnowledgeCategory
-    meera: User  # support lead, owner
-    anil: User  # backup
-    dev: User  # someone in another team
+    meera: User  # support lead (manager), owner
+    anil: User  # backup (manager)
+    dev: User  # manager in another team
     admin: User  # knowledge admin
     head: User  # support function head
 
@@ -37,9 +37,9 @@ async def hub(session: AsyncSession, make_user: UserFactory) -> Hub:
     await session.commit()
     return Hub(
         support=support, hr=hr, support_cat=support_cat, support_sops=support_sops, hr_cat=hr_cat,
-        meera=await make_user(full_name="Meera Kapoor", department_id=support.id),
-        anil=await make_user(full_name="Anil Rao", department_id=support.id),
-        dev=await make_user(full_name="Dev Patel", department_id=hr.id),
+        meera=await make_user("manager", full_name="Meera Kapoor", department_id=support.id),
+        anil=await make_user("manager", full_name="Anil Rao", department_id=support.id),
+        dev=await make_user("manager", full_name="Dev Patel", department_id=hr.id),
         admin=await make_user("knowledge_admin", full_name="Kavya Admin"),
         head=head,
     )

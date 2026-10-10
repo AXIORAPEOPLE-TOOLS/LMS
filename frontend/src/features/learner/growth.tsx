@@ -1,6 +1,6 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, ArrowRight, Check, Flame, Lock, Medal, Star } from 'lucide-react'
+import { ArrowUp, ArrowRight, Check, Flame, Medal, Star } from 'lucide-react'
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import {
@@ -12,7 +12,7 @@ import { Stagger } from '@/components/motion'
 import { EASE } from '@/lib/motion-tokens'
 import { QueryState } from '@/components/SystemStatus'
 import {
-  Badge, Button, Card, Field, Input, Notice, PageHeader, Panel, ProgressBar, Segmented, Select, SkeletonPage, Toggle,
+  Badge, Button, Card, Field, Input, PageHeader, Panel, ProgressBar, Segmented, Select, SkeletonPage, Toggle,
 } from '@/components/ui'
 import { getToken } from '@/lib/auth'
 import { cn, initials } from '@/lib/utils'
@@ -83,7 +83,7 @@ export function RankPage() {
           <Card className="p-2 sm:p-3">
             {data?.rows.length === 0 && <p className="p-6 text-center text-ink-600">No one on this board yet. Finish a lesson to appear here.</p>}
             <LayoutGroup>
-              <ol className="space-y-1.5">
+              <ol className="scroll-panel space-y-1.5 pr-1">
                 <AnimatePresence initial={false}>
                   {data?.rows.map((row) => {
                     const top = Math.max(...(data.rows.map((r) => r.value) ?? [1]), 1)
@@ -139,7 +139,7 @@ export function CareerPage() {
 
   const Option = ({ o }: { o: (typeof up)[number] }) => (
     <button onClick={() => setSelected(o.role_id)}
-      className={cn('w-full rounded-[var(--radius-card)] border bg-surface p-4 text-left transition-colors', chosen === o.role_id ? 'border-2 border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
+      className={cn('w-full rounded-card border bg-surface p-4 text-left transition-colors', chosen === o.role_id ? 'border-2 border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
       <b className="block">{o.role_name}</b>
       <div className="mt-2 flex items-center gap-3">
         <Badge tone={o.direction === 'up' ? 'ok' : 'info'}>{o.direction === 'up' ? <><ArrowUp className="size-3" />Up</> : <><ArrowRight className="size-3" />Side</>}</Badge>
@@ -187,6 +187,53 @@ export function CareerPage() {
 }
 
 // ---- L-09 Points, badges, challenge ------------------------------------------------------------
+const TRAINING_LABEL: Record<string, { label: string; tone: 'neutral' | 'info' | 'warn' | 'ok' }> = {
+  none: { label: 'No training yet', tone: 'neutral' },
+  assigned: { label: 'Training assigned', tone: 'info' },
+  in_progress: { label: 'Training in progress', tone: 'warn' },
+  course_done: { label: 'Course done', tone: 'ok' },
+}
+
+/** Skills my role needs, with the states kept apart: needed ≠ trained ≠ proven by a test. */
+function RoleSkills() {
+  const { data, isLoading } = useMySkills()
+  const { data: me } = useMe()
+  const needed = (data ?? []).filter((s) => s.required_by_role)
+  const proven = needed.filter((s) => s.proven).length
+  return (
+    <Card>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="font-sans text-lg font-bold">Skills for my role</h2>
+          <p className="text-sm text-ink-600">{me?.job_role_name ? `${me.job_role_name} · ` : ''}{needed.length ? `${proven} of ${needed.length} at the level your role needs` : 'No role chosen yet'}</p>
+        </div>
+        {needed.length > 0 && <ProgressBar className="w-full sm:w-56" value={(proven / needed.length) * 100} />}
+      </div>
+      {isLoading && <p className="mt-4 text-sm text-ink-600">Loading…</p>}
+      {!isLoading && needed.length === 0 && <p className="mt-4 text-sm text-ink-600">Ask HR to set your job role. Its skills will show here.</p>}
+      <ul className="scroll-panel mt-4 divide-y divide-line pr-2">
+        {needed.map((s) => {
+          const training = TRAINING_LABEL[s.training] ?? TRAINING_LABEL.none
+          return (
+            <li key={s.skill_id} className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              <div className="min-w-0">
+                <b className="block truncate">{s.skill_name}</b>
+                <p className="text-[13px] text-ink-600">
+                  Needs level {s.required_level} · {s.current_level == null ? 'not tested yet' : `you are at level ${s.current_level}`}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                <Badge tone={training.tone}>{training.label}</Badge>
+                {s.proven ? <Badge tone="ok"><Check className="size-3.5" />Level proven</Badge> : s.current_level != null ? <Badge tone="neutral">Gap of {s.gap}</Badge> : null}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
+  )
+}
+
 export function ProfilePage() {
   const profile = useProfile()
   const badges = useBadges()
@@ -198,53 +245,55 @@ export function ProfilePage() {
   return (
     <QueryState isLoading={profile.isLoading} error={profile.error} hasData={!!p} skeleton={<SkeletonPage />} onRetry={profile.refetch}>
       {p && (
-        <div className="grid gap-5 lg:grid-cols-3">
-          <Card className="text-center">
-            <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-forest-100 font-serif text-2xl font-bold text-forest-800">{p.initials || initials(p.full_name)}</span>
-            <h1 className="mt-3 font-sans text-xl font-bold">{p.full_name}</h1>
-            <p className="text-sm text-ink-600">{p.level_name}{p.skill_level_name && ` · ${p.skill_level_name}`}</p>
-            <ProgressBar className="mt-4" tone="gold" value={p.level_progress_pct}
-              label={p.next_level_name ? `${new Intl.NumberFormat('en-IN').format(p.points)} points · ${p.points_to_next} to ${p.next_level_name}` : `${p.points} points · top level`} />
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {[[<Flame key="f" className="size-5 text-gold-500" />, `${p.streak_days} day streak`], [<Star key="s" className="size-5 text-gold-500" />, `${p.levels_gained} levels gained`], [<Check key="c" className="size-5 text-forest-700" />, `${p.certificates} certificates`]].map(([icon, label]) => (
-                <div key={String(label)} className="rounded-xl bg-forest-50 p-3 text-[12px] font-semibold">{icon}<span className="mt-1 block">{label}</span></div>
-              ))}
-            </div>
-            <p className="mt-4 text-left text-sm"><b>This week</b><br /><span className="text-ink-600">+{p.week_points} points · {p.week_lessons} lessons · {p.week_tests} tests</span></p>
-            {me.data && (
-              <div className="mt-3 border-t border-line pt-2 text-left">
-                <Toggle checked={me.data.show_name_on_boards} onChange={(v) => prefs.mutate({ show_name_on_boards: v })} label="Show my name on boards" hint="Off shows you as “A colleague”." />
+        <div className="space-y-6">
+          <div className="grid items-start gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <Card className="text-center lg:sticky lg:top-24">
+              <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-forest-100 font-serif text-2xl font-bold text-forest-800">{p.initials || initials(p.full_name)}</span>
+              <h1 className="mt-3 font-sans text-xl font-bold">{p.full_name}</h1>
+              <p className="text-sm text-ink-600">{[me.data?.job_role_name, me.data?.department_name].filter(Boolean).join(' · ') || 'No role yet'}</p>
+              {me.data?.manager_name && <p className="text-[13px] text-ink-600">Manager: {me.data.manager_name}</p>}
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {[[<Flame key="f" className="mx-auto size-5 text-gold-500" />, `${p.streak_days} day streak`], [<Star key="s" className="mx-auto size-5 text-gold-500" />, `${p.levels_gained} levels gained`], [<Check key="c" className="mx-auto size-5 text-forest-700" />, `${p.certificates} certificates`]].map(([icon, label]) => (
+                  <div key={String(label)} className="rounded-xl bg-forest-50 p-3 text-[12px] font-semibold">{icon}<span className="mt-1 block">{label}</span></div>
+                ))}
               </div>
-            )}
-          </Card>
-          <Card>
-            <h2 className="font-sans text-lg font-bold">My badges · {badges.data?.earned ?? 0} of {badges.data?.total ?? 0}</h2>
-            <Stagger className="mt-4 grid grid-cols-3 gap-3">
-              {badges.data?.badges.map((b) => (
-                <div key={b.code} className="text-center" title={b.description}>
-                  <span className={cn('mx-auto flex size-14 items-center justify-center rounded-full', b.earned ? 'bg-gold-500 text-white' : 'bg-canvas text-ink-400')}>
-                    {b.earned ? <Medal className="size-6" /> : <Lock className="size-5" />}
-                  </span>
-                  <span className={cn('mt-1 block text-[12px] font-semibold', !b.earned && 'text-ink-400')}>{b.name}</span>
+              <ProgressBar className="mt-4" tone="gold" value={p.level_progress_pct}
+                label={p.next_level_name ? `${new Intl.NumberFormat('en-IN').format(p.points)} points · ${p.points_to_next} to ${p.next_level_name}` : `${p.points} points · top level`} />
+              {me.data && (
+                <div className="mt-3 border-t border-line pt-2 text-left">
+                  <Toggle checked={me.data.show_name_on_boards} onChange={(v) => prefs.mutate({ show_name_on_boards: v })} label="Show my name on boards" hint="Off shows you as “A colleague”." />
                 </div>
+              )}
+            </Card>
+            <RoleSkills />
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <h2 className="font-sans text-lg font-bold">My badges · {badges.data?.earned ?? 0} of {badges.data?.total ?? 0}</h2>
+              <Stagger className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+                {badges.data?.badges.map((b) => (
+                  <div key={b.code} className="text-center" title={b.description}>
+                    <span className={cn('mx-auto flex size-14 items-center justify-center rounded-full', b.earned ? 'bg-gold-500 text-white' : 'bg-canvas text-ink-400')}>
+                      <Medal className="size-6" />
+                    </span>
+                    <span className={cn('mt-1 block text-[12px] font-semibold', !b.earned && 'text-ink-400')}>{b.name}</span>
+                  </div>
+                ))}
+              </Stagger>
+            </Card>
+            <div className="space-y-4">
+              {challenges.data?.map((c) => (
+                <Card key={c.id}>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-400">Team challenge (optional)</p>
+                  <h2 className="mt-1 font-sans text-lg font-bold">{c.title}</h2>
+                  <ProgressBar className="mt-3" tone="gold" value={c.team_pct} label={`Team at ${c.team_pct}% · ${c.days_left} days left`} />
+                  {c.my_part[0] && <p className="mt-3 text-sm"><b>Your part:</b> {c.my_part[0]}</p>}
+                  <p className="mt-1 text-sm text-ink-600">Reward: team badge and {c.reward_points} points each</p>
+                  <Button variant="outline" className="mt-4" disabled={c.joined} loading={join.isPending} onClick={() => join.mutate(c.id)}>{c.joined ? 'You joined' : 'Join challenge'}</Button>
+                </Card>
               ))}
-            </Stagger>
-          </Card>
-          <div className="space-y-4">
-            {challenges.data?.map((c) => (
-              <div key={c.id} className="space-y-3">
-                <Panel>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/60">Team challenge</p>
-                  <h2 className="mt-2 font-sans text-lg font-bold text-white">{c.title}</h2>
-                  <ProgressBar className="mt-4" tone="gold" value={c.team_pct} label={<span className="text-white/75">Team at {c.team_pct}% · {c.days_left} days left</span>} />
-                </Panel>
-                {c.my_part[0] && <Card><b className="text-sm">Your part</b><p className="mt-1 text-sm">{c.my_part[0]}</p></Card>}
-                <p className="text-sm text-ink-600">Reward: team badge and {c.reward_points} points each</p>
-                <Notice>Joining is optional. Show my name on boards: {me.data?.show_name_on_boards ? 'On' : 'Off'}</Notice>
-                <Button variant="gold" size="lg" block disabled={c.joined} loading={join.isPending} onClick={() => join.mutate(c.id)}>{c.joined ? 'You joined' : 'Join challenge'}</Button>
-              </div>
-            ))}
-            {challenges.data?.length === 0 && <Card className="text-sm text-ink-600">No team challenge right now.</Card>}
+              {challenges.data?.length === 0 && <Card className="text-sm text-ink-600">No team challenge right now.</Card>}
+            </div>
           </div>
         </div>
       )}
@@ -263,6 +312,7 @@ function RemindersForm({ me }: { me: Me }) {
   const [window_, setWindow] = useState<[string, string]>(me.reminder_window)
   const [channels, setChannels] = useState({ in_app: me.reminder_channels.in_app ?? true, email: !!me.reminder_channels.email, whatsapp: !!me.reminder_channels.whatsapp })
   const [hours, setHours] = useState(me.hours_per_week)
+  const [phone, setPhone] = useState(me.phone ?? '')
   return (
     <div className="mx-auto max-w-md">
       <h1 className="mb-5 text-3xl">My reminders</h1>
@@ -281,12 +331,17 @@ function RemindersForm({ me }: { me: Me }) {
           <Toggle checked={channels.in_app} onChange={(v) => setChannels({ ...channels, in_app: v })} label="In the app" />
           <Toggle checked={channels.email} onChange={(v) => setChannels({ ...channels, email: v })} label="Email" />
           <Toggle checked={channels.whatsapp} onChange={(v) => setChannels({ ...channels, whatsapp: v })} label="WhatsApp" />
+          {channels.whatsapp && (
+            <Field label="WhatsApp number" hint={phone ? undefined : 'Add your number, or WhatsApp messages cannot reach you.'}>
+              <Input type="tel" inputMode="tel" placeholder="+91 98765 43210" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </Field>
+          )}
         </div>
         <Field label="Learning time each week" hint="Used to plan your pathway.">
           <Select value={hours} onChange={(e) => setHours(Number(e.target.value))}>{[1, 2, 3, 4, 5, 6, 8, 10].map((h) => <option key={h} value={h}>{h} hours</option>)}</Select>
         </Field>
         <p className="text-[13px] text-ink-600">No messages before 9 am, after 7 pm, on weekends or holidays. At most one a day.</p>
-        <Button size="lg" block loading={save.isPending} onClick={() => save.mutate({ reminder_window: window_, reminder_channels: channels, hours_per_week: hours })}>Save</Button>
+        <Button size="lg" block loading={save.isPending} onClick={() => save.mutate({ reminder_window: window_, reminder_channels: channels, hours_per_week: hours, phone: phone.trim() || null })}>Save</Button>
       </Card>
     </div>
   )

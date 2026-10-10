@@ -83,8 +83,8 @@ function Light({ state, size = 10 }: { state: string; size?: number }) {
 function Panel({ title, icon, children, className, right }: { title: string; icon: ReactNode; children: ReactNode; className?: string; right?: ReactNode }) {
   return (
     <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}
-      className={cn('relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.015] p-4 backdrop-blur', className)}>
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#B8860B]/60 to-transparent" />
+      className={cn('relative overflow-hidden rounded-2xl border border-white/[0.08] bg-linear-to-b from-white/[0.05] to-white/[0.015] p-4 backdrop-blur', className)}>
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-[#B8860B]/60 to-transparent" />
       <header className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-sans text-[12px] font-bold uppercase tracking-[0.18em] text-[#9cc7b9]">{icon}{title}</h2>
         {right}

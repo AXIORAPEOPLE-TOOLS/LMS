@@ -17,6 +17,7 @@ MODEL_MODULES = [
     "app.modules.workflows.models",
     "app.modules.reports.models",
     "app.modules.knowledge.models",
+    "app.modules.agents.models",
 ]
 
 

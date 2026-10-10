@@ -167,13 +167,31 @@ export function CourseReviewPage() {
                     </div>
                   ))}
                 </Stagger>
-                <p className="mt-4 text-sm">Quiz: {fmt.plural(data.questions?.length ?? data.question_count, 'question')} with answers and reasons</p>
+                <p className="mt-4 text-sm">
+                  Quiz: {fmt.plural(data.questions?.length ?? data.question_count, 'question')} with answers
+                  {data.pass_mark ? ` · pass mark ${data.pass_mark}` : ''}{data.quiz_time_limit_minutes ? ` · ${data.quiz_time_limit_minutes} minutes` : ''}
+                </p>
                 {data.questions && data.questions.length > 0 && (
                   <details className="mt-2"><summary className="cursor-pointer text-sm font-semibold text-forest-700">See questions</summary>
                     <ol className="mt-2 space-y-2 text-sm">{data.questions.map((q) => (
-                      <li key={q.id} className="rounded-lg bg-canvas p-3"><b>{q.text}</b><br />Answer: {q.options[q.answer_index ?? 0]}<br /><span className="text-ink-600">{q.reason}</span></li>
+                      <li key={q.id} className="rounded-lg bg-canvas p-3">
+                        <b>{q.text}</b>
+                        {q.kind === 'written' ? (
+                          <>
+                            <br /><span className="text-ink-600">Written answer. Model answer: {q.model_answer}</span>
+                            <ul className="mt-1 list-disc pl-5 text-ink-600">{q.rubric?.map((r, i) => <li key={i}>{r.point} ({fmt.plural(r.marks, 'mark')})</li>)}</ul>
+                          </>
+                        ) : (
+                          <><br />Answer: {q.options[q.answer_index ?? 0]}<br /><span className="text-ink-600">{q.reason}</span></>
+                        )}
+                      </li>
                     ))}</ol>
                   </details>
+                )}
+                {has('admin') && ['draft', 'published', 'in_review'].includes(data.status) && data.lessons.length > 0 && (
+                  <ButtonLink variant="soft" size="sm" className="mt-3" to={`/admin/helpers?tab=quiz&course=${data.id}`}>
+                    {data.questions?.length ? 'Write a new quick check' : 'Write the quick check'}
+                  </ButtonLink>
                 )}
               </Card>
               <div className="space-y-3">
@@ -239,9 +257,9 @@ export function SessionsPage({ embedded }: { embedded?: boolean }) {
       </div>
       <QueryState isLoading={sessions.isLoading} error={sessions.error} hasData={!!sessions.data} skeleton={<SkeletonPage />} onRetry={sessions.refetch}>
         {sessions.data?.length === 0 && <EmptyState title="No sessions scheduled" />}
-        <Stagger className="space-y-3">
+        <Stagger className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {sessions.data?.map((s) => (
-            <Card key={s.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Card key={s.id} className="flex h-full flex-col justify-between gap-4">
               <div>
                 <b>{s.title}</b>
                 <p className="text-[13px] text-ink-600">{fmt.dayTime(s.starts_at)} – {fmt.time(s.ends_at)}{s.trainer_name && ` · ${s.trainer_name}`} · {s.audience_label}</p>

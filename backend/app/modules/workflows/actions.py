@@ -167,7 +167,7 @@ class SendWelcome:
                 kind=NotificationKind.WELCOME,
                 title=f"Welcome, {user.full_name.split()[0]}!",
                 body="Start with a short skill check. It shows your level and builds your learning plan.",
-                link="/",
+                link="/home",
                 automatic=actor is None,
             )
         return ActionResult(lines=[f"Welcomed {len(users)} people"], people=len(users))
@@ -286,6 +286,113 @@ class WeeklyOverdueSummary:
         return ActionResult(lines=[f"Sent {len(lists)} manager lists"], people=len(lists))
 
 
+class SendDeadlineReminders:
+    code = "send_deadline_reminders"
+    label = "Remind 7 days, 2 days and on the due date"
+
+    async def preview(self, session: AsyncSession, context: dict[str, Any]) -> ActionResult:
+        from app.modules.reminders.deadlines import DeadlineService, stage_title
+
+        items = await DeadlineService(session).due_today()
+        return ActionResult(
+            lines=[f"{i.user.full_name}: {stage_title(i.days_left, i.course_title)}" for i in items[:20]], people=len(items)
+        )
+
+    async def execute(self, session: AsyncSession, context: dict[str, Any], actor: User | None) -> ActionResult:
+        from app.modules.reminders.deadlines import DeadlineService
+
+        sent = await DeadlineService(session).run(automatic=actor is None)
+        return ActionResult(lines=[f"Sent {sent} due-date reminders"], people=sent)
+
+
+class OverdueAfterDeadline:
+    code = "overdue_after_deadline"
+    label = "After the deadline, send each manager the overdue list"
+
+    async def preview(self, session: AsyncSession, context: dict[str, Any]) -> ActionResult:
+        from app.modules.reminders.deadlines import DeadlineService
+
+        lists = await DeadlineService(session).overdue_lists()
+        return ActionResult(lines=[f"{len(lists)} managers, {sum(map(len, lists.values()))} people overdue"], people=len(lists))
+
+    async def execute(self, session: AsyncSession, context: dict[str, Any], actor: User | None) -> ActionResult:
+        from app.modules.reminders.deadlines import DeadlineService
+
+        sent = await DeadlineService(session).send_overdue_lists(automatic=actor is None)
+        return ActionResult(lines=[f"Sent {sent} manager lists"], people=sent)
+
+
+class ResultsSummary:
+    code = "results_summary"
+    label = "Share yesterday's test results with HR and managers"
+
+    async def _lines(self, session: AsyncSession) -> tuple[dict[UUID, list[tuple[str, bool]]], list[str]]:
+        from datetime import datetime, time
+
+        from app.modules.learning.models import Course, CourseQuizAttempt
+        from app.shared.clock import org_timezone
+
+        yesterday = today() - timedelta(days=1)
+        start = datetime.combine(yesterday, time(0), tzinfo=org_timezone())
+        end = start + timedelta(days=1)
+        rows = (
+            await session.execute(
+                select(User, Course.title, CourseQuizAttempt.score, CourseQuizAttempt.passed)
+                .join(CourseQuizAttempt, CourseQuizAttempt.user_id == User.id)
+                .join(Course, Course.id == CourseQuizAttempt.course_id)
+                .where(CourseQuizAttempt.submitted_at >= start, CourseQuizAttempt.submitted_at < end)
+                .order_by(User.full_name)
+            )
+        ).all()
+        by_manager: dict[UUID, list[tuple[str, bool]]] = defaultdict(list)
+        everyone: list[str] = []
+        for user, title, score, passed in rows:
+            line = f"{user.full_name}: {title}: {'passed' if passed else 'not passed'} ({score}/100)"
+            everyone.append(line)
+            if user.manager_id:
+                by_manager[user.manager_id].append((line, passed))
+        return by_manager, everyone
+
+    async def preview(self, session: AsyncSession, context: dict[str, Any]) -> ActionResult:
+        by_manager, everyone = await self._lines(session)
+        return ActionResult(
+            lines=[f"{len(everyone)} results yesterday, {len(by_manager)} managers get their team's"], people=len(by_manager)
+        )
+
+    async def execute(self, session: AsyncSession, context: dict[str, Any], actor: User | None) -> ActionResult:
+        from app.modules.notifications.models import NotificationKind
+        from app.modules.notifications.service import NotificationService
+
+        by_manager, everyone = await self._lines(session)
+        if not everyone:
+            return ActionResult(lines=["No test results yesterday"], people=0)
+        notifications = NotificationService(session)
+        for manager_id, lines in by_manager.items():
+            passed = sum(ok for _, ok in lines)
+            await notifications.notify(
+                manager_id,
+                kind=NotificationKind.SUMMARY,
+                title=f"Team results: {passed} of {len(lines)} passed",
+                body="\n".join(line for line, _ in lines[:20]),
+                link="/admin/training",
+                automatic=actor is None,
+            )
+        admins = [u for u in (await session.scalars(select(User).where(User.is_active.is_(True)))).all() if u.has_role("admin")]
+        for admin in admins:
+            await notifications.notify(
+                admin.id,
+                kind=NotificationKind.SUMMARY,
+                title=f"Yesterday's test results: {len(everyone)}",
+                body="\n".join(everyone[:30]),
+                link="/admin/training",
+                automatic=actor is None,
+            )
+        return ActionResult(
+            lines=[f"Shared {len(everyone)} results with {len(by_manager)} managers and {len(admins)} HR admins"],
+            people=len(by_manager) + len(admins),
+        )
+
+
 ACTIONS: dict[str, WorkflowAction] = {}
 
 
@@ -301,5 +408,8 @@ for _action in (
     CertificateRenewals(),
     SendSessionInvitations(),
     WeeklyOverdueSummary(),
+    SendDeadlineReminders(),
+    OverdueAfterDeadline(),
+    ResultsSummary(),
 ):
     register_action(_action)

@@ -48,7 +48,7 @@ async def test_whole_pathway_loop(client: AsyncClient, session: AsyncSession, ma
     view = (await client.get("/me/pathway", headers=h)).json()
     assert view["status"] == "active" and view["current_wave"] == 1
     assert view["waves"][1]["status"] == "locked"
-    assert view["next_step"]["title"] == "Learn: Data privacy basics"
+    assert view["next_step"]["title"] == "Take the course: Data privacy basics"
     # The wave's course now shows in my learning.
     assert any(a["source"] == "pathway" for a in (await client.get("/me/assignments", headers=h)).json())
 

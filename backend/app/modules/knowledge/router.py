@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core.deps import CurrentUser, SessionDep, require_roles
+from app.core.errors import PermissionDeniedError
 from app.modules.identity.models import User
 from app.modules.knowledge import reports as _knowledge_reports  # noqa: F401  (registers reports)
 from app.modules.knowledge.access_service import AccessService
@@ -14,6 +15,7 @@ from app.modules.knowledge.catalog_service import CategoryService, ListService
 from app.modules.knowledge.dashboard_service import DashboardService
 from app.modules.knowledge.item_service import MAX_UPLOAD_BYTES, ItemService
 from app.modules.knowledge.library_service import LibraryService
+from app.modules.knowledge.permissions import can_open_hub
 from app.modules.knowledge.schemas import (
     AccessOut,
     AccessRequestIn,
@@ -48,7 +50,14 @@ from app.modules.knowledge.schemas import (
 )
 from app.shared.schemas import Schema
 
-router = APIRouter(prefix="/knowledge", tags=["knowledge"])
+
+async def hub_user(session: SessionDep, user: CurrentUser) -> User:
+    if not await can_open_hub(session, user):
+        raise PermissionDeniedError("The Knowledge Hub is for records staff.")
+    return user
+
+
+router = APIRouter(prefix="/knowledge", tags=["knowledge"], dependencies=[Depends(hub_user)])
 LeaderUser = Annotated[User, Depends(require_roles("knowledge_admin", "admin", "function_head", "manager"))]
 
 

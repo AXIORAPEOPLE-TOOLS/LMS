@@ -11,10 +11,11 @@ LEARNER_PATHS = [
     "/me", "/me/home", "/me/pathway", "/me/skills", "/me/assignments", "/me/tests", "/me/certificates", "/me/career",
     "/me/profile", "/me/badges", "/challenges", "/me/sessions", "/me/notifications", "/courses",
     "/leaderboards/skill_champions", "/leaderboards/learning_hours", "/leaderboards/pathway_progress",
-    "/leaderboards/most_improved", "/leaderboards/compliance", "/knowledge/home", "/knowledge/library",
-    "/knowledge/my-items", "/knowledge/search?q=refund", "/health",
+    "/leaderboards/most_improved", "/leaderboards/compliance", "/health",
 ]
-MANAGER_PATHS = ["/team", "/reports", "/reports/mandatory_compliance", "/knowledge/dashboard"]
+# The Knowledge Hub is for records staff; managers (and owners) can open it, plain learners cannot.
+KNOWLEDGE_PATHS = ["/knowledge/home", "/knowledge/library", "/knowledge/my-items", "/knowledge/search?q=refund"]
+MANAGER_PATHS = ["/team", "/reports", "/reports/mandatory_compliance", "/knowledge/dashboard", *KNOWLEDGE_PATHS]
 ADMIN_PATHS = [
     "/admin/home", "/users", "/job-roles", "/skills", "/admin/courses", "/admin/tests", "/admin/sessions",
     "/admin/workflows", "/admin/workflows/runs", "/admin/reminders/preview", "/admin/reminders/rules", "/proctoring/queue",
@@ -48,6 +49,10 @@ async def test_every_screen_answers_for_each_role(client: AsyncClient, seeded: N
     for path in ADMIN_PATHS:
         assert (await client.get(path, headers=admin)).status_code == 200, path
     assert (await client.get("/admin/home", headers=asha)).status_code == 403
+    for path in KNOWLEDGE_PATHS:
+        assert (await client.get(path, headers=asha)).status_code == 403, path
+    assert (await client.get("/me", headers=asha)).json()["can_open_knowledge"] is False
+    assert (await client.get("/me", headers=manager)).json()["can_open_knowledge"] is True
 
 
 async def test_demo_matches_the_deck_story(client: AsyncClient, seeded: None) -> None:
@@ -62,5 +67,6 @@ async def test_demo_matches_the_deck_story(client: AsyncClient, seeded: None) ->
     assert profile["level_name"] == "Practitioner" and profile["points_to_next"] == 260
     career = (await client.get("/me/career", headers=asha)).json()
     assert career["current_role_name"] == "Admissions Counsellor" and len(career["options"]) == 4
-    hub = (await client.get("/knowledge/library", headers=asha)).json()
+    meera = await _login(client, "meera@example.com")
+    hub = (await client.get("/knowledge/library", headers=meera)).json()
     assert hub["total"] >= 20

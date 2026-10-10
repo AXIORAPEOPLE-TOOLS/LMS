@@ -14,6 +14,8 @@ export interface Me {
   job_role_name: string | null
   manager_id: UUID | null
   manager_name: string | null
+  can_open_knowledge: boolean
+  phone: string | null
   locale: 'en' | 'hi'
   show_name_on_boards: boolean
   reminder_window: [string, string]
@@ -115,6 +117,7 @@ export interface CourseSummary {
   has_video: boolean
   has_simulation: boolean
   lesson_count: number
+  quiz_time_limit_minutes?: number | null
 }
 
 export interface Scenario {
@@ -146,8 +149,11 @@ export interface Question {
   position: number
   text: string
   options: string[]
+  kind?: 'choice' | 'written'
   answer_index?: number
   reason?: string
+  model_answer?: string
+  rubric?: { point: string; marks: number }[]
 }
 
 export interface CourseDetail extends CourseSummary {
@@ -258,6 +264,9 @@ export interface MySkill {
   rank: number | null
   out_of: number | null
   top_percent: number | null
+  required_by_role: boolean
+  training: 'none' | 'assigned' | 'in_progress' | 'course_done'
+  proven: boolean
 }
 
 export interface CareerMap {
@@ -363,6 +372,7 @@ export interface Audience {
   user_ids?: UUID[]
   job_role_id?: UUID | null
   department_id?: UUID | null
+  skill_id?: UUID | null
   everyone?: boolean
 }
 
@@ -544,4 +554,25 @@ export interface KFunctionDashboard {
   by_owner: { owner_id: UUID; name: string; items: number; overdue: number }[]
   overdue_owner_count: number
   items_without_backup: number
+}
+
+// ---- helpers (LMS.pdf HR steps) ---------------------------------------------------------
+export interface HelperStep { key: string; label: string; status: 'pending' | 'running' | 'done' | 'skipped' | 'waiting' | 'failed'; detail: string; at: string | null }
+export interface HelperRunSummary {
+  id: UUID; kind: 'course' | 'quiz' | 'assign'; status: 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'cancelled'
+  title: string; course_id: UUID | null; created_at: string; finished_at: string | null; step_done: number; step_total: number
+}
+export interface AssignPlan {
+  course_id: UUID | null; course_title: string | null; audience: Audience | null; audience_label: string | null
+  due_on: string | null; due_from_request: boolean; missing: string[]
+  preview: { new_people: number; already_assigned: number; audience_label: string; message_preview: string; people: { id: UUID; name: string; department: string | null; job_role: string | null; already_assigned: boolean }[] } | null
+}
+export interface HelperRun extends HelperRunSummary {
+  brief: Record<string, unknown>; steps: HelperStep[]; result: Record<string, unknown>; error: string | null
+  course_status: string | null; plan: AssignPlan | null
+}
+export interface WrittenReview {
+  attempt_id: UUID; course_id: UUID; course_title: string; person: string; attempt_no: number; submitted_at: string
+  provisional_score: number; pass_mark: number
+  answers: { question_id: UUID; question: string; model_answer: string; rubric: { point: string; marks: number }[]; answer: string; marks: number; max_marks: number; confidence: number; feedback: string }[]
 }

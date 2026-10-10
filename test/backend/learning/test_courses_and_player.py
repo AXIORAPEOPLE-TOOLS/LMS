@@ -36,10 +36,13 @@ async def test_full_course_flow_completes_and_shows_progress(
     questions = [q["id"] for q in quiz]
     wrong = {q: 1 for q in questions}
     failed = (await client.post(f"/courses/{course.id}/quiz", json={"answers": wrong}, headers=h)).json()
-    assert failed["passed"] is False and failed["results"][0]["right_index"] == 0
+    assert failed["passed"] is False and failed["correct_count"] == 0 and failed["total"] == 2
+    assert failed["results"][0]["right_index"] is None and failed["results"][0]["reason"] is None  # no answers before a pass
+    assert failed["can_retake"] is True and failed["attempts_used"] == 1 and failed["attempts_left"] == 2
     right = {q: 0 for q in questions}
     passed = (await client.post(f"/courses/{course.id}/quiz", json={"answers": right}, headers=h)).json()
     assert passed["passed"] is True and passed["course_completed"] is True
+    assert passed["results"][0]["right_index"] == 0 and passed["can_retake"] is False
 
     mine = (await client.get("/me/assignments", headers=h)).json()
     assert mine[0]["status"] == "completed" and mine[0]["source"] == "self"
@@ -102,3 +105,15 @@ async def test_unreadable_upload_is_rejected(client: AsyncClient, make_user: Use
         "/admin/courses/drafts", files={"file": ("x.exe", b"MZ", "application/octet-stream")}, headers=auth(admin)
     )
     assert response.status_code == 422
+
+
+async def test_quiz_tries_are_limited_by_settings(client: AsyncClient, session: AsyncSession, make_user: UserFactory) -> None:
+    course = await make_course(session, lessons=0, questions=2)
+    h = auth(await make_user())
+    questions = [q["id"] for q in (await client.get(f"/courses/{course.id}/quiz", headers=h)).json()]
+    wrong = {q: 1 for q in questions}
+    for left in (2, 1, 0):
+        result = (await client.post(f"/courses/{course.id}/quiz", json={"answers": wrong}, headers=h)).json()
+        assert result["attempts_left"] == left and result["can_retake"] is (left > 0)
+    blocked = await client.post(f"/courses/{course.id}/quiz", json={"answers": wrong}, headers=h)
+    assert blocked.status_code == 409 and "3 tries" in blocked.json()["error"]["message"]

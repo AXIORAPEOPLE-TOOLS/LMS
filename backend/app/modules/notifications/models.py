@@ -22,6 +22,24 @@ class NotificationKind(StrEnum):
     SUMMARY = "summary"  # manager overdue list
 
 
+class DeliveryLog(IdMixin, Base):
+    """One row per channel per message: what was (or, when simulated, would have been) sent."""
+
+    __tablename__ = "delivery_logs"
+
+    notification_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("notifications.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    channel: Mapped[str] = mapped_column(String(20), index=True)
+    to_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subject: Mapped[str] = mapped_column(String(200))
+    text: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), index=True)  # sent | simulated | skipped | paused | failed
+    reason: Mapped[str] = mapped_column(String(200), default="")
+    kind: Mapped[str] = mapped_column(String(20), default="")
+    is_automatic: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, index=True)
+
+
 class Notification(IdMixin, Base):
     __tablename__ = "notifications"
 

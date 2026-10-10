@@ -74,7 +74,7 @@ export function AddKnowledgePage() {
         <div className="grid grid-cols-3 gap-3">
           {cards.map((c) => (
             <button key={c.key} onClick={() => { setMode(c.key); setS(null) }}
-              className={cn('rounded-[var(--radius-card)] border bg-surface p-4 text-center transition-colors', mode === c.key ? 'border-2 border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
+              className={cn('rounded-card border bg-surface p-4 text-center transition-colors', mode === c.key ? 'border-2 border-forest-700 bg-forest-50' : 'border-line hover:border-forest-700/50')}>
               <c.icon className="mx-auto size-6 text-forest-700" /><b className="mt-2 block">{c.title}</b><span className="text-[12px] text-ink-600">{c.sub}</span>
             </button>
           ))}

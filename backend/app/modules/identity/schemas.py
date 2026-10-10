@@ -12,6 +12,27 @@ class LoginRequest(Schema):
     password: str = Field(min_length=1)
 
 
+class SignupIn(Schema):
+    full_name: str = Field(min_length=2, max_length=160)
+    email: EmailStr
+    password: str = Field(min_length=8)
+    job_role_id: UUID
+    department_id: UUID | None = None
+
+
+class SignupChoice(Schema):
+    id: UUID
+    name: str
+    group: str = ""
+
+
+class SignupOptionsOut(Schema):
+    allowed: bool
+    email_domains: list[str]
+    roles: list[SignupChoice]
+    departments: list[SignupChoice]
+
+
 class TokenResponse(Schema):
     access_token: str
     token_type: str = "bearer"
@@ -39,6 +60,7 @@ class UserOut(Schema):
     job_role_id: UUID | None
     manager_id: UUID | None
     joined_on: date | None
+    phone: str | None = None
     locale: str
     show_name_on_boards: bool
     reminder_window: list[str]
@@ -57,6 +79,7 @@ class MeOut(UserOut):
     department_name: str | None = None
     job_role_name: str | None = None
     manager_name: str | None = None
+    can_open_knowledge: bool = False
 
 
 class UserCreate(Schema):
@@ -89,6 +112,7 @@ class PreferencesUpdate(Schema):
     reminder_window: list[str] | None = None
     reminder_channels: dict[str, bool] | None = None
     hours_per_week: int | None = Field(default=None, ge=1, le=40)
+    phone: str | None = Field(default=None, max_length=20, pattern=r"^$|^\+?[0-9 ()-]{7,20}$")
 
     @field_validator("reminder_window")
     @classmethod

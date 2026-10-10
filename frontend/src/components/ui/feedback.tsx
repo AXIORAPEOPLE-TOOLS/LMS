@@ -64,7 +64,7 @@ export function Stat({ value, label, tone = 'ink', change, suffix, className }: 
 }) {
   const color = { ink: 'text-ink-900', ok: 'text-ok-600', warn: 'text-warn-600', bad: 'text-bad-600', info: 'text-info-600', forest: 'text-forest-700' }[tone]
   return (
-    <div className={cn('rounded-[var(--radius-card)] border border-line bg-surface p-4', className)}>
+    <div className={cn('rounded-card border border-line bg-surface p-4', className)}>
       <div className="flex items-start justify-between gap-2">
         <p className={cn('font-serif text-[30px] font-bold leading-none tabular sm:text-[34px]', color)}>
           {typeof value === 'number' ? <CountUp value={value} /> : value}
@@ -83,7 +83,7 @@ export function Stat({ value, label, tone = 'ink', change, suffix, className }: 
 
 export function EmptyState({ title, body, action, icon }: { title: string; body?: ReactNode; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-[var(--radius-card)] border border-dashed border-line bg-surface px-6 py-10 text-center">
+    <div className="flex flex-col items-center rounded-card border border-dashed border-line bg-surface px-6 py-10 text-center">
       {icon && <div className="mb-3 text-forest-700">{icon}</div>}
       <p className="font-semibold">{title}</p>
       {body && <p className="mt-1 max-w-sm text-sm text-ink-600">{body}</p>}

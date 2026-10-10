@@ -7,6 +7,11 @@ Usage from any service:
 Jobs are held on the SQLAlchemy session and only dispatched *after* the
 transaction commits, so a worker never sees a job for data that was rolled back.
 Handlers are registered with `@job_handler("name")` and receive a fresh session.
+
+Under load: jobs go to Redis in batches (`enqueue_batch_size` per round trip), each job
+carries an id so a repeated enqueue is ignored, crashed jobs retry with exponential
+backoff (`job_attempts`, `job_backoff_ms`), and if Redis is down only a few jobs run
+inline - undelivered notifications are picked up by the `notifications.redeliver` sweep.
 """
 
 import logging
@@ -64,6 +69,7 @@ def defer_job(session: AsyncSession, queue: str, name: str, data: dict[str, Any]
 
 class JobQueue(Protocol):
     async def enqueue(self, job: Job) -> None: ...
+    async def enqueue_many(self, jobs: list[Job]) -> None: ...
     async def close(self) -> None: ...
 
 
@@ -76,6 +82,10 @@ class InlineQueue:
     async def enqueue(self, job: Job) -> None:
         self.history.append(job)
         await run_job(job.name, job.data)
+
+    async def enqueue_many(self, jobs: list[Job]) -> None:
+        for job in jobs:
+            await self.enqueue(job)
 
     async def close(self) -> None:
         return None
@@ -95,18 +105,39 @@ class BullMQQueue:
             self._queues[name] = Queue(name, {"connection": self.redis_url})
         return self._queues[name]
 
-    async def enqueue(self, job: Job) -> None:
+    @staticmethod
+    def _opts(job: Job) -> dict[str, Any]:
+        settings = get_settings()
         opts: dict[str, Any] = {
-            "attempts": 5,
-            "backoff": {"type": "exponential", "delay": 5_000},
+            "attempts": settings.job_attempts,
+            "backoff": {"type": "exponential", "delay": settings.job_backoff_ms},
             "removeOnComplete": 1_000,
             "removeOnFail": 5_000,
         }
         if job.delay_ms:
             opts["delay"] = job.delay_ms
+        if job.data.get("id"):
+            # Same job twice (e.g. a retried request) -> BullMQ keeps one.
+            run = f":{job.data['run']}" if job.data.get("run") else ""
+            opts["jobId"] = f"{job.name}:{job.data['id']}:{job.data.get('attempt', 1)}{run}"
+        return opts
+
+    async def enqueue(self, job: Job) -> None:
         queue = self._queue(job.queue)
         # Breaker: if Redis keeps failing we skip it for a while and run inline.
-        await breaker("redis", failure_threshold=2).call(lambda: queue.add(job.name, job.data, opts), timeout=2)
+        await breaker("redis", failure_threshold=2).call(lambda: queue.add(job.name, job.data, self._opts(job)), timeout=2)
+
+    async def enqueue_many(self, jobs: list[Job]) -> None:
+        """One Redis round trip per batch instead of one per job (bulk sends to thousands of people)."""
+        size = max(1, get_settings().enqueue_batch_size)
+        by_queue: dict[str, list[Job]] = {}
+        for job in jobs:
+            by_queue.setdefault(job.queue, []).append(job)
+        for name, items in by_queue.items():
+            queue = self._queue(name)
+            for start in range(0, len(items), size):
+                batch = [{"name": j.name, "data": j.data, "opts": self._opts(j)} for j in items[start : start + size]]
+                await breaker("redis", failure_threshold=2).call(lambda b=batch, q=queue: q.addBulk(b), timeout=10)
 
     async def close(self) -> None:
         for queue in self._queues.values():
@@ -130,15 +161,33 @@ def set_queue(queue: JobQueue | None) -> None:
     _queue = queue
 
 
+# Jobs that a sweep can safely redo later if Redis is down (the data is already in the database).
+SWEEPABLE = {"notifications.deliver"}
+
+
 async def dispatch_pending(session: AsyncSession) -> None:
     jobs: list[Job] = session.info.pop(PENDING_KEY, [])
+    if not jobs:
+        return
     queue = get_queue()
-    for job in jobs:
+    try:
+        if len(jobs) == 1:
+            await queue.enqueue(jobs[0])
+        else:
+            await queue.enqueue_many(jobs)
+        return
+    except Exception:  # never fail a committed request because Redis blinked
+        logger.exception("Could not enqueue %s jobs; falling back", len(jobs))
+    limit = get_settings().inline_fallback_limit
+    inline = [j for j in jobs if j.name not in SWEEPABLE] + [j for j in jobs if j.name in SWEEPABLE][: max(0, limit)]
+    skipped = len(jobs) - len(inline)
+    if skipped:
+        logger.warning("%s deliveries left for the redeliver sweep (Redis down, too many to run inline)", skipped)
+    for job in inline:
         try:
-            await queue.enqueue(job)
-        except Exception:  # never fail a committed request because Redis blinked
-            logger.exception("Could not enqueue job %s; running it inline", job.name)
             await run_job(job.name, job.data)
+        except Exception:
+            logger.exception("Inline job %s failed", job.name)
 
 
 async def run_job(name: str, data: dict[str, Any]) -> Any:

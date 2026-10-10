@@ -27,7 +27,7 @@ export function KnowledgeHomePage() {
   return (
     <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
       {data && (
-        <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-6">
             <form className="flex flex-col gap-2 rounded-2xl border-2 border-forest-700 bg-surface p-2 sm:flex-row"
               onSubmit={(e) => { e.preventDefault(); setSubmitted(q); ask.reset() }}>
@@ -80,28 +80,28 @@ export function KnowledgeHomePage() {
               <SectionTitle action={<ButtonLink to="/knowledge/add" size="sm"><Plus className="size-4" />Add knowledge</ButtonLink>}>Spaces</SectionTitle>
               <Stagger className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {data.spaces.map((s) => (
-                  <Link key={s.id} to={`/knowledge/library?category_id=${s.id}`} className="block rounded-[var(--radius-card)] border border-line bg-surface p-4 hover:border-forest-700">
+                  <Link key={s.id} to={`/knowledge/library?category_id=${s.id}`} className="block rounded-card border border-line bg-surface p-4 hover:border-forest-700">
                     <b>{s.name}</b><p className="text-[13px] text-ink-600">{fmt.plural(s.item_count, 'item')}</p>
                   </Link>
                 ))}
               </Stagger>
             </section>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <section>
-                <SectionTitle>Recently verified</SectionTitle>
-                <ul className="space-y-2">{data.recently_verified.map((i) => (
-                  <li key={i.id} className="flex items-center justify-between gap-2"><Link to={`/knowledge/items/${i.id}`} className="truncate text-sm hover:text-forest-700">{i.title}</Link><Badge tone="ok">Verified</Badge></li>
-                ))}</ul>
-              </section>
-              <section>
-                <SectionTitle>Must know (critical)</SectionTitle>
-                <ul className="space-y-2">{data.critical.map((i) => (
-                  <li key={i.id}><Link to={`/knowledge/items/${i.id}`} className="flex items-center gap-2 text-sm hover:text-forest-700"><Star className="size-4 fill-gold-500 text-gold-500" />{i.title}</Link></li>
-                ))}</ul>
-              </section>
-            </div>
           </div>
-          <MyItemsCard mine={data.my_items} onOpen={() => navigate('/knowledge/my-items')} />
+          <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:self-start">
+            <MyItemsCard mine={data.my_items} onOpen={() => navigate('/knowledge/my-items')} />
+            <Card>
+              <SectionTitle>Must know (critical)</SectionTitle>
+              <ul className="scroll-panel max-h-72 space-y-2.5 pr-1">{data.critical.map((i) => (
+                <li key={i.id}><Link to={`/knowledge/items/${i.id}`} className="flex items-center gap-2 text-sm hover:text-forest-700"><Star className="size-4 shrink-0 fill-gold-500 text-gold-500" />{i.title}</Link></li>
+              ))}</ul>
+            </Card>
+            <Card>
+              <SectionTitle>Recently verified</SectionTitle>
+              <ul className="scroll-panel max-h-72 space-y-2.5 pr-1">{data.recently_verified.map((i) => (
+                <li key={i.id} className="flex items-center justify-between gap-2"><Link to={`/knowledge/items/${i.id}`} className="truncate text-sm hover:text-forest-700">{i.title}</Link><Badge tone="ok">Verified</Badge></li>
+              ))}</ul>
+            </Card>
+          </aside>
         </div>
       )}
     </QueryState>
@@ -111,7 +111,7 @@ export function KnowledgeHomePage() {
 function MyItemsCard({ mine, onOpen }: { mine: KMyItems; onOpen: () => void }) {
   const items = mine.items.filter((i) => i.reason === 'overdue' || i.reason === 'due_soon').slice(0, 4)
   return (
-    <Card className="lg:sticky lg:top-20 lg:self-start">
+    <Card>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-xl">My items</h2>
         <span className="flex gap-1.5">{mine.overdue > 0 && <Badge tone="bad">{mine.overdue} overdue</Badge>}{mine.due_soon > 0 && <Badge tone="warn">{mine.due_soon} due soon</Badge>}</span>
@@ -195,7 +195,7 @@ export function LibraryPage() {
               </div>
               {data.items.length === 0 ? <div className="mt-4"><EmptyState title="Nothing matches" body="Try fewer filters." /></div> : (
                 <Card className="mt-4 overflow-x-auto p-0">
-                  <table className="w-full min-w-[720px] text-sm">
+                  <table className="w-full min-w-180 text-sm">
                     <thead><tr className="text-left text-[12px] text-ink-600">
                       {canBulk && <th className="w-10" />}<th className="px-3 py-2.5">Name</th><th>Kind</th><th>Category</th><th>Owner</th><th>Ver.</th><th>Status</th><th>Next review</th>
                     </tr></thead>
@@ -251,7 +251,7 @@ export function MyItemsPage() {
       <PageHeader title="My items" subtitle="Everything that needs you, with one-click actions. The reminders point here." />
       <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
         {data && (
-          <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-4">
               <Stagger className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat value={data.overdue} label="Overdue" tone="bad" className="border-transparent bg-bad-50" />

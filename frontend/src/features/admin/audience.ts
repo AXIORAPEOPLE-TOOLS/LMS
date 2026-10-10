@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import { useUndo } from '@/api/admin'
 import type { Audience, BulkResult } from '@/api/types'
 
-export const audienceChosen = (a: Audience) => !!(a.everyone || a.job_role_id || a.department_id || a.user_ids?.length)
+export const audienceChosen = (a: Audience) => !!(a.everyone || a.job_role_id || a.department_id || a.skill_id || a.user_ids?.length)
 
 /** "Sent to 14 people · Undo" for the undo window (golden rule 4). */
 export function useUndoToast() {

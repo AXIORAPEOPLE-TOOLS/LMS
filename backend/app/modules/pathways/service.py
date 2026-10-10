@@ -148,9 +148,9 @@ class PathwayService:
             return NextStepOut(
                 item_id=item.id,
                 step=item.step,
-                title=f"Learn: {course or skill}",
-                description=f"Build {skill} from level {item.from_level} to {item.to_level}.",
-                action_label="Continue",
+                title=f"Take the course: {course or skill}",
+                description=f"Takes you from level {item.from_level} to {item.to_level} in {skill}.",
+                action_label="Continue course",
                 href=f"/learn/courses/{item.course_id}" if item.course_id else f"/learn/catalogue?skill={item.skill_id}",
             )
         if item.step == Step.PRACTISE:
@@ -158,9 +158,9 @@ class PathwayService:
             return NextStepOut(
                 item_id=item.id,
                 step=item.step,
-                title=f"Practise: apply {skill} on a live case",
+                title=f"Use {skill} at work",
                 description="Waiting for your manager to sign it off." if waiting else item.practise_task,
-                action_label="See status" if waiting else "Add what you did",
+                action_label="Waiting for sign-off" if waiting else "Tell us what you did",
                 href=None,
             )
         if item.step == Step.CONNECT:
@@ -168,17 +168,17 @@ class PathwayService:
             return NextStepOut(
                 item_id=item.id,
                 step=item.step,
-                title=f"Connect: 30 minutes with {mentor or 'an in-house expert'}",
+                title=f"Talk to {mentor or 'an expert at work'} for 30 minutes",
                 description=f"Ask how they use {skill} in their work.",
-                action_label="I met them",
+                action_label="Done, we talked",
                 href=None,
             )
         return NextStepOut(
             item_id=item.id,
             step=item.step,
-            title=f"Prove: take the {skill} skill check again",
+            title=f"Take the {skill} test",
             description=f"Reach level {item.to_level} to finish this skill.",
-            action_label="Start skill check",
+            action_label="Start test",
             href="/learn/tests",
         )
 

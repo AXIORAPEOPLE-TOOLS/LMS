@@ -6,11 +6,11 @@ test.describe('Learner (Asha)', () => {
     await signIn(page, 'asha@example.com')
     await expect(page.getByRole('heading', { name: /Asha/ })).toBeVisible()
     await expect(page.getByText('Your next step')).toBeVisible()
-    await expect(page.getByText(/Learn: Data privacy/)).toBeVisible()
-    await expect(page.getByText('My pathway')).toBeVisible()
+    await expect(page.getByText(/Take the course: Data privacy/)).toBeVisible()
+    await expect(page.getByText('My learning plan').first()).toBeVisible()
     await page.goto('/path')
-    await expect(page.getByRole('heading', { name: 'Wave 1 of 3' })).toBeVisible()
-    await expect(page.getByText('Manager approved')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'My learning plan' })).toBeVisible()
+    await expect(page.getByText('Approved by your manager')).toBeVisible()
   })
 
   test('takes a lesson and the course progress moves', async ({ page }) => {

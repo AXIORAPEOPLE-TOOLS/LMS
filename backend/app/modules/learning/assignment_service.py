@@ -8,12 +8,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFoundError, ValidationFailedError
-from app.modules.identity.models import User
+from app.modules.identity.models import Department, User
 from app.modules.learning.bulk import BulkActionService, register_undo
 from app.modules.learning.models import Assignment, AssignmentStatus, Course, CourseStatus
-from app.modules.learning.schemas import AssignIn, AssignmentOut, AssignPreviewOut, BulkResultOut
+from app.modules.learning.schemas import AssignIn, AssignmentOut, AssignPersonOut, AssignPreviewOut, BulkResultOut
 from app.modules.notifications.models import NotificationKind
 from app.modules.notifications.service import NotificationService
+from app.modules.skills.models import JobRole, Skill
 from app.shared.audience import resolve_audience
 from app.shared.clock import today
 
@@ -52,6 +53,11 @@ class AssignmentService:
         due = f" by {data.due_on:%d %b}" if data.due_on else ""
         return AssignPreviewOut(
             course_title=course.title,
+            skill_name=await self._skill_name(course.skill_id),
+            due_on=data.due_on,
+            is_mandatory=data.is_mandatory or course.is_mandatory,
+            pass_mark=course.pass_mark,
+            people=await self._people(audience.user_ids, set(existing)),
             audience_label=audience.label,
             new_people=len(new),
             already_assigned=len(existing),
@@ -59,6 +65,28 @@ class AssignmentService:
             message_preview=f'Hi {{first name}}, "{course.title}" has been added to your learning{due}. '
             f"It takes about {course.duration_minutes} minutes.",
         )
+
+    async def _skill_name(self, skill_id: UUID | None) -> str | None:
+        skill = await self.session.get(Skill, skill_id) if skill_id else None
+        return skill.name if skill else None
+
+    async def _people(self, user_ids: list[UUID], existing: set[UUID]) -> list[AssignPersonOut]:
+        """Everyone in the audience, so HR sees exactly who will (and will not) get it."""
+        if not user_ids:
+            return []
+        rows = (
+            await self.session.execute(
+                select(User.id, User.full_name, Department.name, JobRole.name)
+                .outerjoin(Department, Department.id == User.department_id)
+                .outerjoin(JobRole, JobRole.id == User.job_role_id)
+                .where(User.id.in_(user_ids))
+                .order_by(User.full_name)
+            )
+        ).all()
+        return [
+            AssignPersonOut(id=uid, name=name, department=dept, job_role=role, already_assigned=uid in existing)
+            for uid, name, dept, role in rows
+        ]
 
     async def assign(self, data: AssignIn, actor: User | None, *, source: str = "manual") -> BulkResultOut:
         course = await self._published(data.course_id)

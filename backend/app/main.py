@@ -29,7 +29,9 @@ ROUTER_MODULES = [
     "app.modules.settings.router",
     "app.modules.audit.router",
     "app.modules.notifications.router",
+    "app.modules.notifications.admin_router",
     "app.modules.learning.router",
+    "app.modules.agents.router",
     "app.modules.assessments.router",
     "app.modules.certificates.router",
     "app.modules.pathways.router",
@@ -57,6 +59,7 @@ SUBSCRIBER_MODULES = [
 JOB_MODULES = [
     "app.modules.notifications.jobs",
     "app.modules.learning.jobs",
+    "app.modules.agents.jobs",
     "app.modules.scheduler.jobs",
     "app.modules.knowledge.jobs",
 ]
@@ -114,6 +117,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.environment)
+    if settings.log_requests:
+        # Our "api" log line has timing and request id; uvicorn's access line would repeat it.
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     wire_modules()
     app = FastAPI(
         title=settings.app_name,

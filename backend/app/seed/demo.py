@@ -309,7 +309,10 @@ async def seed_demo(session: AsyncSession) -> None:
     for a, b, kind in CAREER_MOVES:
         session.add(CareerMove(from_role_id=roles[a].id, to_role_id=roles[b].id, kind=kind))
 
+    phones = iter(range(1, 10_000))
+
     def person(name: str, email: str, dept: str, role: str | None, sys_roles: list[str], **kw: Any) -> User:
+        kw.setdefault("phone", f"+91 90000 {next(phones):05d}")  # invented numbers, for simulated WhatsApp
         user = User(
             email=email,
             full_name=name,

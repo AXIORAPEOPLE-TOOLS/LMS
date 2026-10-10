@@ -77,9 +77,7 @@ class ReminderService:
             )
         ).all()
         for invite_id, user_id, test_id, title, minutes in invites:
-            items[user_id].append(
-                _OpenItem("test_invite", invite_id, f"Skill check: {title}", minutes, f"/learn/tests/{test_id}")
-            )
+            items[user_id].append(_OpenItem("test_invite", invite_id, f"Test: {title}", minutes, f"/learn/tests/{test_id}"))
         return items
 
     async def plan(self) -> list[tuple[User, datetime, list[_OpenItem]]]:

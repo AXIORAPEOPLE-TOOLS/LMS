@@ -24,7 +24,7 @@ async def test_notify_delivers_on_chosen_channels_after_commit(
     assert [j.name for j in queue.history] == ["notifications.deliver"]
     row = (await session.execute(Notification.__table__.select())).first()
     assert row is not None
-    assert row.channel_status == {"in_app": "sent", "email": "sent", "whatsapp": "skipped"}
+    assert row.channel_status == {"in_app": "sent", "email": "simulated", "whatsapp": "skipped"}  # no email provider yet
 
 
 async def test_rolled_back_work_never_reaches_the_queue(database: Database, queue: InlineQueue, make_user: UserFactory) -> None:

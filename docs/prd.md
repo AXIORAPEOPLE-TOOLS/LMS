@@ -2,6 +2,8 @@
 
 Sources: *LMS_UIUX_Deck.pdf* (32 slides, screen IDs) and *LMS_Build_Spec.pdf* (build specification v3, sheets 01–24).
 
+> **Priorities:** the core learning loop and knowledge loop in [`core-flows.md`](core-flows.md) come first (flows, data model, permissions, MVP/V2/V3, acceptance tests). Everything below that is not in the MVP column there is kept but not extended until those flows pass.
+
 ## 1. Problem
 Service companies hire many people into well-defined roles but cannot see who is ready for what.
 Training is assigned by hand, reminders are noisy, mandatory compliance (POSH, DPDP) is chased in

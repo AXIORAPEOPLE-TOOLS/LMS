@@ -103,7 +103,7 @@ class ManagerService:
         for a, title in open_items:
             by_person[a.user_id].append((title, a.due_on, "course"))
         for invite, title in test_items:
-            by_person[invite.user_id].append((f"Skill check: {title}", invite.due_on, "test"))
+            by_person[invite.user_id].append((f"Test: {title}", invite.due_on, "test"))
 
         overdue_people, soon_people = set(), set()
         attention: list[AttentionOut] = []
@@ -243,5 +243,5 @@ class ManagerService:
                 if data.item
                 else "Could you find a few minutes for your learning this week?"
             ),
-            link="/",
+            link="/home",
         )

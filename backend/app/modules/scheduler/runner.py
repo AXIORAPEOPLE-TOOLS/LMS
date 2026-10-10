@@ -35,9 +35,11 @@ class Scheduler:
         while True:
             try:
                 if await self._acquire_lock():
+                    logger.info("Scheduler tick: checking for due tasks")
                     results = await run_due_tasks(get_database().session_factory)
-                    if results:
-                        logger.info("Scheduler ran: %s", results)
+                    logger.info("Scheduler ran: %s", results) if results else logger.info("Scheduler tick: nothing due")
+                else:
+                    logger.info("Scheduler tick skipped: another instance holds the lock")
             except Exception:
                 logger.exception("Scheduler tick failed")
             await asyncio.sleep(self.interval)

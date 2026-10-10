@@ -2,12 +2,12 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-[var(--radius-card)] border border-line bg-surface p-4 sm:p-5', className)} {...props} />
+  return <div className={cn('rounded-card border border-line bg-surface p-4 sm:p-5', className)} {...props} />
 }
 
 /** Dark forest panel used for "Your next step" and other single important actions. */
 export function Panel({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('on-dark rounded-[var(--radius-card)] bg-forest-900 p-5 text-white sm:p-6', className)} {...props} />
+  return <div className={cn('on-dark rounded-card bg-linear-to-br from-forest-700 via-forest-600 to-[#5aa58a] p-5 text-white shadow-sm sm:p-6', className)} {...props} />
 }
 
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {

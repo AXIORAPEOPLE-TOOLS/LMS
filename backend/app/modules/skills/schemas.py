@@ -74,6 +74,10 @@ class MySkillOut(Schema):
     out_of: int | None
     top_percent: int | None
     assessed_at: datetime | None
+    # Separate states (core flow): required by role ≠ trained ≠ proven by a test.
+    required_by_role: bool = False
+    training: str = "none"  # none | assigned | in_progress | course_done
+    proven: bool = False  # a test put the current level at or above the required level
 
 
 class RankingRowOut(Schema):

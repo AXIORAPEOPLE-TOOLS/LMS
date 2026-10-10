@@ -69,6 +69,7 @@ def _deterministic_services() -> Any:
     set_assistant(None)
     reset_breakers()
     clock.freeze(None)
+    set_queue(None)  # a test that swapped the queue never leaks it
 
 
 @pytest.fixture

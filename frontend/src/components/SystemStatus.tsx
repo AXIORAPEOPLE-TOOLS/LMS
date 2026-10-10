@@ -85,7 +85,7 @@ export function QueryState({ isLoading, error, hasData, children, skeleton, onRe
   if (error) {
     const message = error instanceof Error ? error.message : 'Something went wrong.'
     return (
-      <div className="rounded-[var(--radius-card)] border border-line bg-surface p-6 text-center">
+      <div className="rounded-card border border-line bg-surface p-6 text-center">
         <p className="font-semibold">We could not load this right now</p>
         <p className="mt-1 text-sm text-ink-600">{message}</p>
         {onRetry && <Button variant="outline" size="sm" className="mt-4" onClick={onRetry}><RefreshCw className="size-4" /> Try again</Button>}

@@ -20,14 +20,32 @@ Update this table in the same change as the code.
 
 | Admin monitoring (server, API load, DB, Redis/BullMQ, scheduler, breakers, errors; live SSE) | ✅ `/admin/monitoring` | ✅ | monitoring, e2e | |
 | Splash screen, Motion animations, limited-mode banner | — | ✅ | e2e | |
+| Single top navigation (both apps), light two-colour theme, full-width layouts | — | ✅ | e2e | 2026-10-10 UI pass |
 | People directory for pickers | ✅ `/people` | ✅ | identity | |
+
+## Core flows (docs/core-flows.md)
+| Feature | Backend | Frontend | Tests |
+|---|---|---|---|
+| Self sign-up with job role (setting `identity.allow_self_signup`, allowed email domains) | ✅ `/auth/signup`, `/auth/signup-options` | ✅ `/signup` | core_flows |
+| Role skills on profile with separate states (needed · training · proven) | ✅ `/me/skills` | ✅ profile, home | core_flows |
+| Assign by skill (everyone whose role needs it) + by name, full preview, no duplicates | ✅ audience `skill_id` | ✅ `/admin/assign` | core_flows |
+| Only selected people notified | ✅ | — | core_flows |
+| Every course-test attempt kept (answers, score, pass) + tries limit | ✅ `course_quiz_attempts` | ✅ | core_flows, learning |
+| HR training tracker: not started · in progress · course done · failed · passed · overdue, CSV | ✅ `/admin/training` | ✅ `/admin/training` | core_flows |
+| Landing page `/`, home moved to `/home` | — | ✅ | e2e |
+| Due-date reminders 7/2/0 days, overdue list to managers next day, result to employee, daily results summary to HR + managers | ✅ 3 new workflows | ✅ Workflows page | core_flows |
+| Helpers: course from a brief, quiz writer (multiple choice + written cases, pass mark, time), assign from a plain-words request; every step shown; people approve | ✅ `/admin/helpers/*`, `agent_runs` | ✅ `/admin/helpers` | agents |
+| Written answers scored against a rubric; unsure scores checked by the course expert before they count | ✅ `/admin/written-answers` | ✅ quiz + `/admin/answers` | learning |
+| API call log (one line per call with time, user id, request id; slow calls flagged) | ✅ middleware | — | core |
+| Message log: every channel attempt; email + WhatsApp simulated (no provider yet); phone number for WhatsApp | ✅ `/admin/message-log`, `delivery_logs` | ✅ `/admin/messages`, My reminders | core_flows |
+| Learn: To do · Browse courses · Done | — | ✅ | e2e |
 
 ## Learner (L-01 … L-10)
 | ID | Screen | Backend | Frontend | Tests |
 |---|---|---|---|---|
 | L-01 | Home: one next step, pathway progress, coming up | ✅ `/me/home` | ✅ | insights, seed |
 | L-02 | My pathway: waves of 3, learn/practise/connect/prove | ✅ `/me/pathway` | ✅ | pathways |
-| L-03 | Lesson with captions, simulation (AR + simple mode), quiz | ✅ | ✅ | learning |
+| L-03 | Lesson with captions, simulation (AR + simple mode), quiz (score + x of y right; answers only after a pass; tries limited by `learning.quiz_max_attempts`) | ✅ | ✅ | learning |
 | L-04 | Skill check: intro, one question per screen, result with level/rank | ✅ | ✅ | assessments |
 | L-05 | Catalogue | ✅ `/courses` | ✅ | learning |
 | L-06 | Mandatory proctored test, consent, in-person option, certificates | ✅ | ✅ | assessments, certificates |
@@ -54,6 +72,7 @@ Update this table in the same change as the code.
 ## Knowledge Hub (K-01 … K-13)
 | ID | Screen | Backend | Frontend | Tests |
 |---|---|---|---|---|
+| — | Knowledge Hub access: records staff only (roles + owners/backups/category heads), enforced on every `/api/knowledge` route | ✅ | ✅ | knowledge, e2e |
 | K-01 | Home: search/ask, types, spaces, recently verified, critical, my items | ✅ | ✅ | knowledge |
 | K-02 | Add knowledge in three clicks: write/upload/link, suggestions, duplicate check | ✅ | ✅ | knowledge |
 | K-03 | Knowledge page: owner, version, review, actions | ✅ | ✅ | knowledge |

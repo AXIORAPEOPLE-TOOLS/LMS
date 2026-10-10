@@ -1,6 +1,6 @@
 # Frontend UI guide — theme, components, motion, words
 
-The UI follows the deck: calm deep green, a warm gold for the one action that matters on dark panels,
+The UI follows the deck: calm mid-tone green (light, not dark), a warm gold for the one action that matters on dark panels,
 serif headings, plain words, one big button per screen. **Nothing looks "AI-generated"**: no sparkle
 icons, no purple gradients, no "AI" / "AI-assisted" badges or labels. Assistant features are presented
 as ordinary product features ("Draft from a document", "Suggestions", "Ask").
@@ -8,7 +8,7 @@ as ordinary product features ("Draft from a document", "Suggestions", "Ask").
 ## 1. Colour tokens (Tailwind v4 `@theme` in `src/index.css`)
 | Token | Hex | Use |
 |---|---|---|
-| `forest-950` | `#123A31` | darkest panel, hover on dark |
+| `forest-950`…`600` | `#1C6453`…`#3A9079` | mid greens: panels use a soft green gradient, primary buttons `forest-700` |
 | `forest-900` | `#17463C` | dark panels (next-step card, sidebars, hub top bar) |
 | `forest-700` | `#1F5C4E` | **primary** buttons, links, selected states |
 | `forest-600` | `#2C6E5F` | active nav pill on dark |
@@ -35,10 +35,12 @@ alone — always with a word ("Overdue", "Verified").
 - Hindi: Noto Sans Devanagari loaded when the language is Hindi.
 
 ## 3. Layout
-- **Mobile first** (designed at 360 px). Learner gets a **bottom tab bar** (Home, My path, Learn, Rank, Knowledge); ≥ 1024 px switches to a left rail.
-- Manager: 4 tabs (Team, Skills, Approvals, Rank). Admin: 6 sections in a dark sidebar.
-- Knowledge Hub is a **separate app shell**: dark top bar (Home, Library, My items, Dashboard, Admin) and an app switcher.
-- Spacing scale 4/8/12/16/24/32. Cards: radius 14, 1 px `line` border, no heavy shadows. Max content width 1200.
+- **One top navigation on every screen**, in both apps (`layouts/TopNav.tsx`). No sidebar, no bottom tab bar. Links sit in a row; "My team" and "Admin" are menus in the same bar; on phones the bar collapses into a menu button.
+- **One app, one bar.** Home, My path, Learn, Rank, then menus: Knowledge (Overview, Library, My items, Dashboard, Admin), My team and Admin (by role). The Knowledge menu is shown only to records staff: admin, knowledge admin, function heads, managers, and anyone who owns, backs up or heads part of the Hub (the server decides; `/me.can_open_knowledge`). Plain learners do not see it. Knowledge pages open inside the same layout, so the navigation never changes. Messages and the account menu sit at the right. There is no app switcher.
+- Content uses the full width (max 1400 px, 16–32 px gutters). Screens with a main task and side information use two columns on desktop (Home, My path, course); no narrow single-column lists centred in empty space.
+- **Uneven columns scroll, the page does not stretch.** When a list sits beside a shorter column, the list gets the `scroll-panel` class (max ≈ 620 px / 68vh, thin scrollbar) and the short column is `sticky`. Used on the profile skills, home "Coming up", leaderboard, Knowledge home side lists, admin home lists.
+- Routes: `/` is the public landing page, `/home` is the signed-in home, `/login` and `/signup` share one layout.
+- Spacing scale 4/8/12/16/24/32. Cards: radius 14, 1 px `line` border, no heavy shadows.
 
 ## 4. Components (`src/components/ui`)
 | Component | Notes |
@@ -60,7 +62,7 @@ alone — always with a word ("Overdue", "Verified").
 - Durations: 150 ms (press), 220 ms (fade/slide), 320 ms (page), 600 ms (progress bars). Easing `[0.22, 1, 0.36, 1]`.
 - Page transition: fade + 8 px rise. Lists: stagger 40 ms, max 8 items animated. Numbers: count-up on dashboards.
 - `prefers-reduced-motion`: all motion reduced to opacity only (use `useReducedMotion`).
-- **Splash screen** on first open per session: brand mark + product name on forest-900, gold underline drawing in, ≤ 1.4 s, skipped on reduced motion and on return visits within the session.
+- **Splash screen** on first open per session: product name as plain centred text on a light background, ≤ 1 s, skipped on reduced motion and on return visits within the session.
 
 ## 5b. The monitoring page (admin only)
 The one deliberately "instrument panel" screen: very dark forest background (`#0b1d18`) with a faint grid,
@@ -70,7 +72,19 @@ sparklines (requests, latency, errors), per-queue stacked bars and pulsing statu
 number has a label and a threshold colour, breakers can be reset by hand, errors show request ids.
 Still no "AI" styling (no purple gradients or sparkles).
 
+## 5c. Helpers and answers to check
+- Helpers are called **Helpers**, never "AI", "agent" or "assistant" in the UI; no wand or sparkle icons (`ClipboardList`, `PenLine`).
+- A run page is a numbered step list: grey dashed circle = not yet, spinning loader = working, green tick = done,
+  dash = skipped, amber clock on an amber row = needs a person, red cross on a red row = stopped. Each step shows
+  its detail in plain words (what it used, what it removed). The page polls while a run is working.
+- The right column holds the one primary action: *Open the course*, *Assign to N people* (after the full list),
+  *Follow progress*. Undo is a ghost button while the 10-minute window is open.
+- Written quiz questions use a textarea with "A few lines in your own words. Spelling does not matter." When a
+  person must check, the learner sees "Thanks, your answers are in", not a score.
+- Glossary: Written case → written question (`kind = written`) · Points to look for → rubric.
+
 ## 6. Words
+- **Glossary (what people see → what the code calls it):** Test → skill check / assessment · Course test → course quiz · Learning plan → pathway · Stage → wave · Take the course / Use it at work / Talk to an expert / Pass the test → learn / practise / connect / prove · Live class → session · Must do → mandatory · Records staff → knowledge roles.
 - Plain verbs: "Start learning", "Continue", "Send invitations", "Still correct". Never "Initiate", "Leverage", "Utilise".
 - Numbers with context: "62% of Wave 1 done", "Overdue 12 days", "Top 25% of 36 people tested".
 - Errors say what to do: "That email and password do not match." Backend messages are already plain; show them as-is.

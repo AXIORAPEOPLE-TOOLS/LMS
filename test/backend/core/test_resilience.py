@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from app.core.database import Database
@@ -11,7 +12,8 @@ from app.core.queue import BullMQQueue, InlineQueue, Job, defer_job, dispatch_pe
 from app.core.resilience import CircuitBreaker, CircuitOpenError, breaker
 from app.modules.ai.groq_provider import GroqProvider
 from app.modules.ai.provider import RoleCandidate
-from app.modules.notifications.channels import CHANNELS
+from app.modules.notifications.channels import CHANNELS, Rendered
+from app.modules.notifications.models import DeliveryLog
 from app.modules.notifications.service import NotificationService
 from testkit import UserFactory
 
@@ -125,7 +127,14 @@ async def test_email_provider_down_keeps_in_app_message(database: Database, make
     user = await make_user()
 
     class Broken:
+        """A real (not simulated) email provider that is down."""
+
         key = "email"
+        label = "Email"
+        simulated = False
+
+        def render(self, user: Any, notification: Any) -> Rendered:
+            return Rendered(to=user.email, subject=notification.title, text=notification.body)
 
         async def send(self, *_: Any) -> str:
             raise TimeoutError("smtp")
@@ -143,7 +152,12 @@ async def test_email_provider_down_keeps_in_app_message(database: Database, make
                 statuses.append(n.channel_status["email"])
     finally:
         CHANNELS["email"] = original
-    assert statuses == ["failed", "failed", "failed", "paused"]
+    # Each message is retried; once the breaker opens, later attempts are paused instead of hammering
+    # the provider. The in-app copy always arrives.
+    assert statuses[-1] == "paused" and all(s in ("failed", "paused") for s in statuses)
+    async with database.session_factory() as s:
+        in_app = (await s.scalars(select(DeliveryLog.status).where(DeliveryLog.channel == "in_app"))).all()
+    assert in_app == ["sent"] * 4
 
 
 async def test_circuit_breaker_half_opens_after_cooldown() -> None:

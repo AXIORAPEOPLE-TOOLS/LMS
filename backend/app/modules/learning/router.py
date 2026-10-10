@@ -2,10 +2,12 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, UploadFile
+from fastapi.responses import Response
 from pydantic import ValidationError
 
-from app.core.deps import AdminUser, CurrentUser, SessionDep, require_roles
+from app.core.deps import AdminUser, CurrentUser, ManagerUser, SessionDep, require_roles
 from app.core.errors import ValidationFailedError
+from app.modules.audit.service import AuditService
 from app.modules.identity.models import User
 from app.modules.learning.assignment_service import AssignmentService
 from app.modules.learning.bulk import BulkActionService
@@ -26,6 +28,7 @@ from app.modules.learning.schemas import (
     InvitationPreviewOut,
     LessonCompleteOut,
     QuestionOut,
+    QuizAttemptOut,
     QuizResultOut,
     QuizSubmitIn,
     ReviewDecisionIn,
@@ -35,9 +38,15 @@ from app.modules.learning.schemas import (
     SimulationAttemptIn,
     SimulationResultOut,
     SubmitForReviewIn,
+    TrackerCourseOut,
+    TrackerOut,
     UndoOut,
+    WrittenDecisionIn,
+    WrittenReviewOut,
 )
 from app.modules.learning.session_service import SessionService
+from app.modules.learning.tracker_service import TrackerService
+from app.modules.learning.written_review_service import WrittenReviewService
 
 router = APIRouter(tags=["learning"])
 ExpertUser = Annotated[User, Depends(require_roles("expert", "admin"))]
@@ -82,15 +91,49 @@ async def submit_quiz(course_id: UUID, data: QuizSubmitIn, session: SessionDep, 
     return await PlayerService(session).submit_quiz(course_id, data.answers, user)
 
 
+@router.get("/courses/{course_id}/quiz/attempts", response_model=list[QuizAttemptOut])
+async def my_quiz_attempts(course_id: UUID, session: SessionDep, user: CurrentUser) -> object:
+    return await PlayerService(session).my_attempts(course_id, user)
+
+
 @router.get("/me/assignments", response_model=list[AssignmentOut])
 async def my_assignments(session: SessionDep, user: CurrentUser, open_only: bool = False) -> object:
     return await AssignmentService(session).for_user(user.id, include_completed=not open_only)
 
 
+# ---- written answers a person checks (expert of the course, or admin) ----------------
+@router.get("/admin/written-answers", response_model=list[WrittenReviewOut])
+async def written_answers(session: SessionDep, reviewer: ExpertUser) -> object:
+    return await WrittenReviewService(session).queue(reviewer)
+
+
+@router.post("/admin/written-answers/{attempt_id}", response_model=WrittenReviewOut)
+async def check_written_answers(attempt_id: UUID, data: WrittenDecisionIn, session: SessionDep, reviewer: ExpertUser) -> object:
+    return await WrittenReviewService(session).decide(attempt_id, data.marks, reviewer)
+
+
+# ---- HR training tracker (admin: everyone; manager: own team) ---------------------
+@router.get("/admin/training", response_model=list[TrackerCourseOut])
+async def training_overview(session: SessionDep, viewer: ManagerUser) -> object:
+    return await TrackerService(session).courses(viewer)
+
+
+@router.get("/admin/training/{course_id}", response_model=TrackerOut)
+async def training_tracker(course_id: UUID, session: SessionDep, viewer: ManagerUser) -> object:
+    return await TrackerService(session).course(course_id, viewer)
+
+
+@router.get("/admin/training/{course_id}/export")
+async def training_export(course_id: UUID, session: SessionDep, viewer: ManagerUser) -> Response:
+    filename, body = await TrackerService(session).course_csv(course_id, viewer)
+    AuditService(session).record("training.exported", "course", course_id, actor_id=viewer.id)
+    return Response(body, media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
 # ---- course admin & builder --------------------------------------------------------
 @router.get("/admin/courses", response_model=list[CourseSummaryOut])
-async def admin_courses(session: SessionDep, _: ExpertUser, q: str | None = None) -> object:
-    return await CourseService(session).catalogue(query=q, include_unpublished=True)
+async def admin_courses(session: SessionDep, _: ExpertUser, q: str | None = None, skill_id: UUID | None = None) -> object:
+    return await CourseService(session).catalogue(query=q, skill_id=skill_id, include_unpublished=True)
 
 
 @router.get("/admin/courses/{course_id}", response_model=CourseAdminDetailOut)

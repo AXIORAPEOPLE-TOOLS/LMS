@@ -13,5 +13,11 @@ export function RequireAuth() {
 
 export function RequireRole({ roles, children }: { roles: string[]; children: ReactNode }) {
   const { has } = useSession()
-  return has(...roles) ? <>{children}</> : <Navigate to="/" replace />
+  return has(...roles) ? <>{children}</> : <Navigate to="/home" replace />
+}
+
+/** Knowledge Hub: records staff only (roles, or owning/heading part of the Hub). The server decides. */
+export function RequireKnowledge({ children }: { children: ReactNode }) {
+  const { me } = useSession()
+  return me?.can_open_knowledge ? <>{children}</> : <Navigate to="/home" replace />
 }

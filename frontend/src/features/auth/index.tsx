@@ -1,15 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, ShieldAlert } from 'lucide-react'
+import { BookOpenCheck, CheckCircle2, ClipboardCheck, ShieldAlert, UserRound } from 'lucide-react'
 import { motion } from 'motion/react'
-import { useState } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { z } from 'zod'
 import { BrandMark } from '@/components/SplashScreen'
 import { EASE } from '@/lib/motion-tokens'
-import { Button, Card, Field, Input, Notice, Skeleton } from '@/components/ui'
+import { Button, Card, Field, Input, Notice, Select, Skeleton } from '@/components/ui'
 import { api, errorMessage } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { fmt } from '@/lib/utils'
@@ -21,11 +21,44 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const DEMO = [
-  { email: 'asha@example.com', who: 'Learner (Asha)' },
+  { email: 'asha@example.com', who: 'Employee' },
   { email: 'manager@example.com', who: 'Manager' },
-  { email: 'admin@example.com', who: 'Admin' },
-  { email: 'meera@example.com', who: 'Knowledge owner' },
+  { email: 'admin@example.com', who: 'HR admin' },
+  { email: 'meera@example.com', who: 'Records owner' },
 ]
+
+const STEPS = [
+  { icon: UserRound, title: 'Pick your job role', body: 'The skills your role needs appear on your profile.' },
+  { icon: BookOpenCheck, title: 'Learn what HR assigns', body: 'Short courses. Your place is saved.' },
+  { icon: ClipboardCheck, title: 'Take the test, see your result', body: 'Your progress is recorded for you and HR.' },
+]
+
+/** Shared layout for sign-in and sign-up: a short "how it works" on the left, the form on the right. */
+function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex min-h-dvh items-center justify-center px-4 py-10 sm:px-8">
+      <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1fr_440px] lg:gap-16">
+        <motion.section className="hidden lg:block" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}>
+          <div className="flex items-center gap-3"><BrandMark className="size-10" /><span className="font-serif text-xl font-bold">Learning &amp; Knowledge</span></div>
+          <h1 className="mt-10 max-w-md font-serif text-[44px] font-bold leading-[1.1]">Learn what your role needs.</h1>
+          <p className="mt-4 max-w-md text-lg text-ink-600">One place for your training, your tests and your company's know-how.</p>
+          <ol className="mt-10 space-y-3">
+            {STEPS.map((step, i) => (
+              <li key={step.title} className="flex max-w-md items-start gap-4 rounded-2xl border border-line bg-surface/80 p-4">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-forest-100 text-forest-700"><step.icon className="size-5" /></span>
+                <span><b className="block">{i + 1}. {step.title}</b><span className="text-sm text-ink-600">{step.body}</span></span>
+              </li>
+            ))}
+          </ol>
+        </motion.section>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
+          <div className="mb-6 flex items-center justify-center gap-3 lg:hidden"><BrandMark className="size-9" /><span className="font-serif text-lg font-bold">Learning &amp; Knowledge</span></div>
+          <div className="rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_-20px_rgba(31,92,78,0.35)] sm:p-9">{children}</div>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
 
 export function LoginPage() {
   const { t } = useTranslation()
@@ -34,61 +67,114 @@ export function LoginPage() {
   const location = useLocation()
   const [error, setError] = useState<string | null>(null)
   const { register, handleSubmit, setValue, formState } = useForm<FormValues>({ resolver: zodResolver(schema) })
-  if (signedIn) return <Navigate to="/" replace />
+  if (signedIn) return <Navigate to="/home" replace />
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null)
     try {
       await signIn(values.email, values.password)
-      navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true })
+      navigate((location.state as { from?: string } | null)?.from ?? '/home', { replace: true })
     } catch (e) {
       setError(errorMessage(e))
     }
   })
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
-      <section className="on-dark relative hidden overflow-hidden bg-forest-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="flex items-center gap-3"><BrandMark className="size-10" /><span className="font-serif text-xl font-bold">Learning &amp; Knowledge</span></div>
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-gold-500">Learning &amp; Knowledge Suite</p>
-          <h1 className="mt-4 max-w-lg font-serif text-5xl font-bold leading-tight text-white">Simple, clear screens for everyone</h1>
-          <p className="mt-5 max-w-md text-lg text-white/75">Know your next step, grow your skills, and find any company process in one search.</p>
-        </motion.div>
-        <p className="text-sm text-white/50">One main button on every screen. Plain words. Built for phones first.</p>
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full border-[40px] border-white/5" />
-      </section>
+    <AuthLayout>
+      <h1 className="text-[28px]">{t('login.title')}</h1>
+      <p className="mt-1 text-ink-600">{t('login.subtitle')}</p>
+      <form className="mt-7 space-y-4" onSubmit={onSubmit} noValidate>
+        <Field label={t('login.email')} htmlFor="email" error={formState.errors.email?.message}>
+          <Input id="email" type="email" autoComplete="username" inputMode="email" {...register('email')} />
+        </Field>
+        <Field label={t('login.password')} htmlFor="password" error={formState.errors.password?.message}>
+          <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
+        </Field>
+        {error && <Notice tone="bad">{error}</Notice>}
+        <Button type="submit" size="lg" block loading={formState.isSubmitting}>{t('login.submit')}</Button>
+      </form>
+      <p className="mt-5 text-center text-sm text-ink-600">New here? <Link to="/signup" className="font-semibold text-forest-700 underline underline-offset-2">Create your account</Link></p>
+      <div className="mt-7 border-t border-line pt-5">
+        <p className="text-[13px] font-semibold text-ink-600">{t('login.demo')}</p>
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          {DEMO.map((d) => (
+            <button key={d.email} type="button" title={d.email}
+              onClick={() => { setValue('email', d.email); setValue('password', 'Demo@1234') }}
+              className="rounded-full border border-line bg-canvas px-3.5 py-1.5 text-[13px] font-semibold text-ink-700 transition-colors hover:border-forest-700 hover:text-forest-800">
+              {d.who}
+            </button>
+          ))}
+        </div>
+      </div>
+    </AuthLayout>
+  )
+}
 
-      <section className="flex items-center justify-center px-4 py-10">
-        <motion.div className="w-full max-w-sm" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }}>
-          <div className="mb-8 flex items-center gap-3 lg:hidden"><BrandMark className="size-9" /><span className="font-serif text-lg font-bold">Learning &amp; Knowledge</span></div>
-          <h1 className="text-3xl">{t('login.title')}</h1>
-          <p className="mt-1 text-ink-600">{t('login.subtitle')}</p>
-          <form className="mt-7 space-y-4" onSubmit={onSubmit} noValidate>
-            <Field label={t('login.email')} htmlFor="email" error={formState.errors.email?.message}>
-              <Input id="email" type="email" autoComplete="username" inputMode="email" {...register('email')} />
-            </Field>
-            <Field label={t('login.password')} htmlFor="password" error={formState.errors.password?.message}>
-              <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
-            </Field>
-            {error && <Notice tone="bad">{error}</Notice>}
-            <Button type="submit" size="lg" block loading={formState.isSubmitting}>{t('login.submit')}</Button>
-          </form>
-          <Card className="mt-8 bg-forest-50">
-            <p className="text-sm font-semibold">{t('login.demo')}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {DEMO.map((d) => (
-                <button key={d.email} type="button"
-                  onClick={() => { setValue('email', d.email); setValue('password', 'Demo@1234') }}
-                  className="rounded-lg border border-line bg-surface px-3 py-2 text-left text-[13px] hover:border-forest-700">
-                  <b className="block">{d.who}</b><span className="text-ink-600">{d.email}</span>
-                </button>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-      </section>
-    </div>
+interface SignupOptions { allowed: boolean; email_domains: string[]; roles: { id: string; name: string; group: string }[]; departments: { id: string; name: string }[] }
+
+/** Employee sign-up: name, work email, password and job role. The role brings its skills. */
+export function SignupPage() {
+  const { signInWithToken, signedIn } = useSession()
+  const navigate = useNavigate()
+  const options = useQuery({ queryKey: ['signup-options'], queryFn: () => api.get<SignupOptions>('/auth/signup-options') })
+  const [form, setForm] = useState({ full_name: '', email: '', password: '', job_role_id: '', department_id: '' })
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  if (signedIn) return <Navigate to="/home" replace />
+  const groups = Object.entries((options.data?.roles ?? []).reduce<Record<string, { id: string; name: string }[]>>((acc, r) => {
+    (acc[r.group || 'Other'] ??= []).push(r)
+    return acc
+  }, {}))
+  const ready = form.full_name.trim().length > 1 && form.email.includes('@') && form.password.length >= 8 && !!form.job_role_id
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      const { access_token } = await api.post<{ access_token: string }>('/auth/signup', { ...form, department_id: form.department_id || null })
+      signInWithToken(access_token)
+      navigate('/me/profile', { replace: true })
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <AuthLayout>
+          <h1 className="text-[28px]">Create your account</h1>
+          <p className="mt-1 text-ink-600">Pick your job role. We add the skills it needs to your profile.</p>
+          {options.data && !options.data.allowed ? (
+            <Notice tone="warn" className="mt-6">Sign-up is turned off. Ask HR to add you.</Notice>
+          ) : (
+            <form className="mt-6 space-y-4" onSubmit={submit} noValidate>
+              <Field label="Full name" htmlFor="full_name"><Input id="full_name" autoComplete="name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></Field>
+              <Field label="Work email" htmlFor="su_email" hint={options.data?.email_domains.length ? `Use your ${options.data.email_domains.join(' or ')} email.` : undefined}>
+                <Input id="su_email" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </Field>
+              <Field label="Password" htmlFor="su_password" hint="At least 8 characters.">
+                <Input id="su_password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </Field>
+              <Field label="Job role" htmlFor="job_role">
+                <Select id="job_role" value={form.job_role_id} onChange={(e) => setForm({ ...form, job_role_id: e.target.value })}>
+                  <option value="">Choose your job role</option>
+                  {groups.map(([group, roles]) => (
+                    <optgroup key={group} label={group}>{roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</optgroup>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Department (optional)" htmlFor="department">
+                <Select id="department" value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })}>
+                  <option value="">Choose your department</option>
+                  {options.data?.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </Select>
+              </Field>
+              {error && <Notice tone="bad">{error}</Notice>}
+              <Button type="submit" size="lg" block loading={busy} disabled={!ready}>Create account</Button>
+            </form>
+          )}
+          <p className="mt-6 text-center text-sm text-ink-600">Already have an account? <Link to="/login" className="font-semibold text-forest-700 underline">Sign in</Link></p>
+    </AuthLayout>
   )
 }
 

@@ -12,7 +12,8 @@ from app.models_registry import load_all_models
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's loggers (e.g. the "api" call log) working when migrations run inside the app.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 load_all_models()
 target_metadata = Base.metadata

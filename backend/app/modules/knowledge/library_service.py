@@ -243,9 +243,10 @@ class LibraryService:
         names = await self.presenter.names({r.author_id for r, _ in waiting})
         waiting_summaries = await self.presenter.summaries([i for _, i in waiting])
         for (revision, _), s in zip(waiting, waiting_summaries, strict=True):
+            author = names.get(revision.author_id, "someone") if revision.author_id else "someone"
             out.append(
                 MyItemOut(
-                    item=s.model_copy(update={"title": f"{s.title}: change by {names.get(revision.author_id, 'someone')}"}),
+                    item=s.model_copy(update={"title": f"{s.title}: change by {author}"}),
                     reason="waiting_for_me",
                     detail="Waiting for my approval",
                     revision_id=revision.id,
@@ -273,8 +274,8 @@ class LibraryService:
             {"when": _when(item.next_review_on), "text": f"{item.title}: due date"}
             for item in sorted(
                 (i for i in owned if i.next_review_on and i.next_review_on >= today() and i.owner_id == user.id),
-                key=lambda i: i.next_review_on,
-            )[:3]  # type: ignore[arg-type,return-value]
+                key=lambda i: i.next_review_on or today(),
+            )[:3]
         ]
         backups = {i.backup_owner_id for i in owned if i.owner_id == user.id and i.backup_owner_id}
         backup_names = await self.presenter.names(backups)

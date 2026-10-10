@@ -4,7 +4,7 @@ import { useApiMutation } from './client'
 import { keys } from './learner'
 import type {
   AdminHome, Audience, BulkResult, CourseDetail, CourseSummary, Department, JobRole, ReportResult, ReviewCase,
-  ReviewQueueItem, Session, Skill, Team, TestInfo, UserRow, UUID, Workflow, WorkflowRun,
+  ReviewQueueItem, Session, Skill, Team, TestInfo, UserRow, UUID, Workflow, WorkflowRun, HelperRun, HelperRunSummary, WrittenReview,
 } from './types'
 
 // ---- manager --------------------------------------------------------------------------
@@ -73,7 +73,11 @@ export const useReviewCourse = (id: UUID) =>
 // ---- assignments, tests, sessions -----------------------------------------------------
 export const useAssignPreview = () =>
   useApiMutation((body: { course_id: UUID; audience: Audience; due_on?: string; is_mandatory?: boolean }) =>
-    api.post<{ course_title: string; audience_label: string; new_people: number; already_assigned: number; sample_names: string[]; message_preview: string }>('/admin/assignments/preview', body))
+    api.post<{
+      course_title: string; skill_name: string | null; due_on: string | null; is_mandatory: boolean; pass_mark: number | null
+      audience_label: string; new_people: number; already_assigned: number; sample_names: string[]; message_preview: string
+      people: { id: UUID; name: string; department: string | null; job_role: string | null; already_assigned: boolean }[]
+    }>('/admin/assignments/preview', body))
 export const useAssign = () =>
   useApiMutation((body: { course_id: UUID; audience: Audience; due_on?: string; is_mandatory?: boolean }) => api.post<BulkResult>('/admin/assignments', body),
     { invalidate: [['admin', 'home']] })
@@ -136,3 +140,35 @@ export const useSettings = () =>
   useQuery({ queryKey: ['settings'], queryFn: () => api.get<{ key: string; value: unknown; default: unknown; description: string; is_overridden: boolean }[]>('/settings') })
 export const useSaveSetting = () =>
   useApiMutation(({ key, value }: { key: string; value: unknown }) => api.put(`/settings/${key}`, { value }), { invalidate: [['settings']], success: 'Setting saved' })
+
+// ---- helpers: build a course, write a quick check, assign from a request ------------------
+const helperKeys = { runs: ['admin', 'helpers'] as const, run: (id: UUID) => ['admin', 'helpers', id] as const }
+const working = (status?: string) => status === 'queued' || status === 'running'
+export const useHelperRuns = () =>
+  useQuery({
+    queryKey: helperKeys.runs, queryFn: () => api.get<HelperRunSummary[]>('/admin/helpers/runs'),
+    refetchInterval: (query) => (query.state.data?.some((r) => working(r.status)) ? 3_000 : false),
+  })
+export const useHelperRun = (id?: UUID) =>
+  useQuery({
+    queryKey: helperKeys.run(id ?? ''), enabled: !!id, queryFn: () => api.get<HelperRun>(`/admin/helpers/runs/${id}`),
+    refetchInterval: (query) => (working(query.state.data?.status) ? 1_500 : false),
+  })
+export const useBuildCourse = () =>
+  useApiMutation((body: Record<string, unknown>) => api.post<HelperRun>('/admin/helpers/course', body), { invalidate: [helperKeys.runs, ['admin', 'courses']] })
+export const useWriteQuiz = () =>
+  useApiMutation((body: Record<string, unknown>) => api.post<HelperRun>('/admin/helpers/quiz', body), { invalidate: [helperKeys.runs] })
+export const usePlanAssign = () =>
+  useApiMutation((text: string) => api.post<HelperRun>('/admin/helpers/assign', { text }), { invalidate: [helperKeys.runs] })
+export const useConfirmAssign = (id: UUID) =>
+  useApiMutation((body: { course_id: UUID; audience: Audience; due_on?: string | null; is_mandatory?: boolean }) =>
+    api.post<HelperRun>(`/admin/helpers/runs/${id}/confirm`, body), { invalidate: [helperKeys.runs, helperKeys.run(id), ['admin', 'home']] })
+export const useCancelRun = (id: UUID) =>
+  useApiMutation(() => api.post<HelperRun>(`/admin/helpers/runs/${id}/cancel`), { invalidate: [helperKeys.runs, helperKeys.run(id)], success: 'Cancelled' })
+
+// ---- written answers a person checks ---------------------------------------------------
+export const useWrittenAnswers = () => useQuery({ queryKey: ['admin', 'written-answers'], queryFn: () => api.get<WrittenReview[]>('/admin/written-answers') })
+export const useCheckWritten = () =>
+  useApiMutation(({ attemptId, marks }: { attemptId: UUID; marks: { question_id: UUID; marks: number; feedback?: string }[] }) =>
+    api.post<WrittenReview>(`/admin/written-answers/${attemptId}`, { marks }),
+    { invalidate: [['admin', 'written-answers']], success: (d) => `Saved. Final score ${d.provisional_score}; the learner has been told.` })

@@ -7,20 +7,20 @@
   --font-sans: "Source Sans 3 Variable", "Noto Sans Devanagari", system-ui, sans-serif;
   --font-serif: "Source Serif 4 Variable", Georgia, serif;
 
-  --color-forest-950: #123a31;
-  --color-forest-900: #17463c;
-  --color-forest-800: #1b5145;
-  --color-forest-700: #1f5c4e;
-  --color-forest-600: #2c6e5f;
-  --color-forest-200: #c7dbd2;
-  --color-forest-100: #e8f0ec;
-  --color-forest-50: #f1f6f3;
+  --color-forest-950: #1c6453;
+  --color-forest-900: #23735f;
+  --color-forest-800: #1d5f4f;
+  --color-forest-700: #2a7f6a;
+  --color-forest-600: #3a9079;
+  --color-forest-200: #cfe6dc;
+  --color-forest-100: #e6f3ee;
+  --color-forest-50: #f2f9f6;
 
   --color-gold-600: #a07409;
   --color-gold-500: #b8860b;
   --color-gold-100: #f7ecd2;
 
-  --color-canvas: #f4f6f5;
+  --color-canvas: #f3f8f5;
   --color-surface: #ffffff;
   --color-line: #dde3e0;
 
@@ -48,6 +48,8 @@
   }
   body {
     @apply bg-canvas font-sans text-ink-900 antialiased;
+    background-image: linear-gradient(160deg, #eaf5ef 0%, #f7faf6 45%, #fbf4e4 100%);
+    background-attachment: fixed;
     font-size: 15px;
     line-height: 1.5;
   }
@@ -79,6 +81,14 @@
 @layer utilities {
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+  /* Long list beside a shorter column: scroll inside the card instead of stretching the page. */
+  .scroll-panel {
+    max-height: min(68vh, 620px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-forest-200) transparent;
   }
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);

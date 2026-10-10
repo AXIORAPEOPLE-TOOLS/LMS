@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     access_token_minutes: int = 60 * 12
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
+    # Used to build full links in emails and WhatsApp messages.
+    public_app_url: str = "http://localhost:5173"
 
     # Background scheduler for reminders and timed workflows.
     scheduler_enabled: bool = False
@@ -56,6 +58,17 @@ class Settings(BaseSettings):
     queue_backend: Literal["inline", "bullmq"] = "inline"
     upstash_redis_rest_url: str | None = None
     upstash_redis_rest_token: str | None = None
+    # Load and retries (infrastructure tuning, not business rules).
+    worker_concurrency: int = 8  # jobs per queue per worker process; run more workers to scale out
+    job_attempts: int = 5  # BullMQ retries a crashed job this many times
+    job_backoff_ms: int = 5_000  # first retry after 5 s, then 10, 20, 40 s ...
+    enqueue_batch_size: int = 200  # jobs per Redis round trip when many are sent at once
+    inline_fallback_limit: int = 50  # Redis down: run at most this many jobs inline; the rest wait for the sweep
+    notification_rate_per_second: int = 50  # cap on deliveries per second across all workers (provider limits)
+    delivery_retry_attempts: int = 4  # a failed email/WhatsApp is retried this many times
+    # API call log: one line per request (method, path, status, time). Slow calls are logged as warnings.
+    log_requests: bool = True
+    slow_request_ms: int = 1_000
 
     upload_dir: str = "uploads"
     max_upload_mb: int = 25

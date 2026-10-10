@@ -12,7 +12,7 @@ from app.modules.knowledge.models import KnowledgeItem
 from app.modules.knowledge.rules import health, stages_due
 from app.shared import clock
 from conftest_helpers import create_item
-from testkit import auth
+from testkit import UserFactory, auth
 
 
 def test_ladder_stages() -> None:
@@ -120,7 +120,7 @@ async def test_categories_merge(client: AsyncClient, hub) -> None:  # type: igno
     assert page["category_path"] == "Support › Escalation"  # items and their history follow
 
 
-async def test_dashboards_and_ladder(client: AsyncClient, hub, database: Database, session: AsyncSession) -> None:  # type: ignore[no-untyped-def]
+async def test_dashboards_and_ladder(client: AsyncClient, hub, database: Database, session: AsyncSession, make_user: UserFactory) -> None:  # type: ignore[no-untyped-def]
     for i in range(3):
         await create_item(client, hub, title=f"Support item {i}", category_id=hub.support_sops.id, backup=hub.anil if i else None)
     overdue = await create_item(client, hub, title="Escalation playbook", category_id=hub.support_sops.id)
@@ -133,7 +133,8 @@ async def test_dashboards_and_ladder(client: AsyncClient, hub, database: Databas
     assert leader["company"]["items"] == 5 and leader["company"]["overdue"] == 1
     assert {f["name"] for f in leader["by_function"]} == {"Support", "HR"}
     assert leader["attention"][0]["text"].startswith("Support: 1 items overdue")
-    assert (await client.get("/knowledge/dashboard", headers=auth(hub.dev))).status_code == 403
+    learner = await make_user(full_name="Lena Learner")
+    assert (await client.get("/knowledge/dashboard", headers=auth(learner))).status_code == 403
 
     fn = (await client.get(f"/knowledge/dashboard/{hub.support_cat.id}", headers=auth(hub.head))).json()
     assert fn["tile"]["items"] == 4 and fn["by_category"][0]["name"] == "Support SOPs"
@@ -150,3 +151,13 @@ async def test_dashboards_and_ladder(client: AsyncClient, hub, database: Databas
     assert any("Escalation playbook" in n["body"] for n in inbox)
     mine = (await client.get("/knowledge/my-items", headers=auth(hub.meera))).json()
     assert mine["overdue"] == 1 and mine["items"][0]["item"]["id"] == overdue["id"]
+
+
+async def test_plain_learners_cannot_open_the_hub(client: AsyncClient, make_user: UserFactory, hub) -> None:
+    """The Hub is for records staff only (admin, knowledge admin, function heads, managers)."""
+    learner = await make_user(full_name="Lena Learner")
+    for path in ("/knowledge/home", "/knowledge/library", "/knowledge/my-items"):
+        response = await client.get(path, headers=auth(learner))
+        assert response.status_code == 403, path
+    for staff in (hub.meera, hub.admin, hub.head):
+        assert (await client.get("/knowledge/home", headers=auth(staff))).status_code == 200

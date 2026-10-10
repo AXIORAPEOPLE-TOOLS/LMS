@@ -1,8 +1,8 @@
-import { ArrowRight, CalendarClock, Check, CheckCheck, ClipboardCheck, Flame, Lock, Mail } from 'lucide-react'
+import { ArrowRight, CalendarClock, Check, CheckCheck, ClipboardCheck, Clock, Flame, Mail } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
-import { useHome, useMarkRead, useNotifications, usePathway, usePathwayStep, useGeneratePathway, useRsvp } from '@/api/learner'
+import { useHome, useMySkills, useMarkRead, useNotifications, usePathway, usePathwayStep, useGeneratePathway, useRsvp } from '@/api/learner'
 import type { PathwayItem, Wave } from '@/api/types'
 import { FadeIn, Stagger } from '@/components/motion'
 import { QueryState } from '@/components/SystemStatus'
@@ -24,7 +24,7 @@ export function HomePage() {
   return (
     <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
       {data && (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <div className="space-y-6">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-[26px] sm:text-3xl">{t(greetingKey(), { name: data.first_name })}</h1>
@@ -35,6 +35,8 @@ export function HomePage() {
             )}
           </div>
 
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="space-y-6">
           <FadeIn>
             <Panel>
               <Eyebrow>{t('home.nextStep')}</Eyebrow>
@@ -42,7 +44,7 @@ export function HomePage() {
               <p className={cn('mt-2 text-white/75', data.next_step.is_overdue && 'text-gold-100')}>
                 {data.next_step.is_overdue && <b className="mr-1 text-gold-500">Overdue ·</b>}{data.next_step.detail}
               </p>
-              <ButtonLink to={data.next_step.href} variant="gold" size="lg" block className="mt-5">
+              <ButtonLink to={data.next_step.href} variant="gold" size="lg" className="mt-5">
                 {data.next_step.action_label} <ArrowRight className="size-4" />
               </ButtonLink>
             </Panel>
@@ -53,20 +55,22 @@ export function HomePage() {
               <SectionTitle action={<Link to="/path" className="text-sm font-semibold text-forest-700">{t('common.seeAll')}</Link>}>{t('home.myPathway')}</SectionTitle>
               <Card>
                 {data.pathway_status === 'pending_approval'
-                  ? <p className="text-sm text-ink-600">Waiting for your manager to approve your pathway.</p>
+                  ? <p className="text-sm text-ink-600">Waiting for your manager to approve your plan.</p>
                   : <ProgressBar value={data.pathway_progress_pct} label={data.pathway_wave ? t('home.waveDone', { pct: data.pathway_progress_pct, wave: data.pathway_wave }) : `${data.pathway_progress_pct}% done`} />}
               </Card>
             </section>
           )}
+          <RoleSkillsSummary />
+          </div>
 
           <section>
             <SectionTitle>{t('home.comingUp')}</SectionTitle>
             {data.coming_up.length === 0 ? (
               <Card className="text-sm text-ink-600">{t('home.nothingComing')}</Card>
             ) : (
-              <Stagger className="space-y-2.5">
+              <Stagger className="scroll-panel space-y-2.5 pr-1">
                 {data.coming_up.map((item) => (
-                  <Link key={item.href + item.title} to={item.href} className="flex items-center gap-3 rounded-[var(--radius-card)] border border-line bg-surface p-4 transition-colors hover:border-forest-700">
+                  <Link key={item.href + item.title} to={item.href} className="flex items-center gap-3 rounded-card border border-line bg-surface p-4 transition-colors hover:border-forest-700">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-forest-100 text-forest-700">
                       {item.kind === 'session' ? <CalendarClock className="size-5" /> : item.kind === 'skill_check' ? <ClipboardCheck className="size-5" /> : <ArrowRight className="size-5" />}
                     </span>
@@ -79,62 +83,122 @@ export function HomePage() {
               </Stagger>
             )}
           </section>
+          </div>
         </div>
       )}
     </QueryState>
   )
 }
 
-// ---- L-02 My pathway ---------------------------------------------------------------------
-const STEPS = ['learn', 'practise', 'connect', 'prove'] as const
-const STEP_LABEL = { learn: 'Learn', practise: 'Practise', connect: 'Connect', prove: 'Prove' }
-
-function StepChips({ item }: { item: PathwayItem }) {
-  const current = item.step === 'done' ? 4 : STEPS.indexOf(item.step as (typeof STEPS)[number])
+/** Short version of "Skills for my role" (full list on the profile). */
+function RoleSkillsSummary() {
+  const { data } = useMySkills()
+  const needed = (data ?? []).filter((s) => s.required_by_role)
+  if (!needed.length) return null
+  const proven = needed.filter((s) => s.proven).length
+  const gaps = needed.filter((s) => !s.proven).slice(0, 3)
   return (
-    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <section>
+      <SectionTitle action={<Link to="/me/profile" className="text-sm font-semibold text-forest-700">See all</Link>}>Skills for my role</SectionTitle>
+      <Card>
+        <ProgressBar value={(proven / needed.length) * 100} label={`${proven} of ${needed.length} skills at the level your role needs`} />
+        {gaps.length > 0 && (
+          <ul className="mt-4 space-y-2 text-sm">
+            {gaps.map((s) => (
+              <li key={s.skill_id} className="flex items-center justify-between gap-3">
+                <span className="truncate">{s.skill_name}</span>
+                <span className="shrink-0 text-[13px] text-ink-600">{s.current_level == null ? 'Not tested yet' : `Level ${s.current_level} of ${s.required_level}`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </section>
+  )
+}
+
+// ---- L-02 My learning plan ------------------------------------------------------------------
+// Internal step keys stay learn/practise/connect/prove; people see plain words.
+const STEPS = ['learn', 'practise', 'connect', 'prove'] as const
+const STEP_LABEL = { learn: 'Take the course', practise: 'Use it at work', connect: 'Talk to an expert', prove: 'Pass the test' }
+
+function stepIndex(item: PathwayItem) {
+  return item.step === 'done' ? 4 : STEPS.indexOf(item.step as (typeof STEPS)[number])
+}
+
+function StepTracker({ item }: { item: PathwayItem }) {
+  const current = stepIndex(item)
+  return (
+    <ol className="mt-4 grid grid-cols-4 gap-1" aria-label={`${item.skill_name} steps`}>
       {STEPS.map((step, i) => {
         const state = i < current ? 'done' : i === current ? 'now' : 'later'
         return (
-          <span key={step} className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold',
-            state === 'done' && 'bg-ok-50 text-ok-600', state === 'now' && 'bg-forest-100 text-forest-800 ring-1 ring-forest-700/30', state === 'later' && 'bg-canvas text-ink-400')}>
-            {state === 'done' ? <Check className="size-4" /> : <span className={cn('size-2 rounded-full', state === 'now' ? 'bg-forest-700' : 'border border-ink-400')} />}
-            {STEP_LABEL[step]}
-          </span>
+          <li key={step} className="relative flex flex-col items-center text-center">
+            {i > 0 && <span className={cn('absolute right-1/2 top-3.5 h-0.5 w-full -translate-y-1/2', i <= current ? 'bg-ok-600' : 'bg-line')} aria-hidden />}
+            <span className={cn('relative z-10 flex size-7 items-center justify-center rounded-full text-[12px] font-bold',
+              state === 'done' && 'bg-ok-600 text-white', state === 'now' && 'bg-forest-700 text-white ring-4 ring-forest-100', state === 'later' && 'border-2 border-line bg-surface text-ink-400')}>
+              {state === 'done' ? <Check className="size-4" /> : i + 1}
+            </span>
+            <span className={cn('mt-1.5 text-[12px] leading-tight', state === 'now' ? 'font-bold text-forest-800' : state === 'done' ? 'text-ok-600' : 'text-ink-400')}>{STEP_LABEL[step]}</span>
+          </li>
         )
       })}
+    </ol>
+  )
+}
+
+function SkillRow({ item }: { item: PathwayItem }) {
+  const current = stepIndex(item)
+  return (
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <b className="block">{item.skill_name}</b>
+          <p className="text-[13px] text-ink-600">Level {item.from_level} → {item.to_level}{item.certificate_on_pass && ' · certificate when you pass'}</p>
+        </div>
+        {item.step === 'done' ? <Badge tone="ok">Done</Badge>
+          : item.waiting_for_signoff ? <Badge tone="warn">Waiting for your manager</Badge>
+          : <Badge>Step {current + 1} of 4</Badge>}
+      </div>
+      <StepTracker item={item} />
     </div>
   )
 }
 
-function WaveCard({ wave }: { wave: Wave }) {
+function StageCard({ wave, previous }: { wave: Wave; previous?: number }) {
+  const left = wave.items.filter((i) => i.step !== 'done').length
+  if (wave.status === 'locked') {
+    return (
+      <Card className="border-dashed bg-surface/60">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-lg">Stage {wave.number}</h3>
+          <span className="flex items-center gap-1.5 text-sm text-ink-600"><Clock className="size-4" />Starts after Stage {previous}</span>
+        </div>
+        <p className="mt-1 text-sm text-ink-600">About {wave.hours} hours over {fmt.plural(wave.weeks, 'week')}</p>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {wave.items.map((i) => (
+            <li key={i.id} className="flex items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-2 text-sm">
+              <span className="truncate">{i.skill_name}</span>
+              <span className="shrink-0 text-[12px] text-ink-600">Level {i.from_level} → {i.to_level}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    )
+  }
   return (
-    <Card className={cn(wave.status === 'locked' && 'bg-canvas')}>
+    <Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-xl">Wave {wave.number}</h3>
-        <span className="text-sm text-ink-600">About {wave.hours} hours · {fmt.plural(wave.weeks, 'week')}</span>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xl">Stage {wave.number}</h3>
+          {wave.status === 'done' ? <Badge tone="ok">Done</Badge> : <Badge>In progress</Badge>}
+        </div>
+        <span className="text-sm text-ink-600">{wave.status === 'done' ? `${wave.items.length} skills done` : `${left} of ${wave.items.length} skills left`} · about {wave.hours} hours</span>
       </div>
-      {wave.status === 'locked' ? (
-        <p className="mt-2 flex items-center gap-2 text-sm text-ink-600"><Lock className="size-4" />Locked: {wave.items.map((i) => i.skill_name).join(', ')}</p>
-      ) : (
-        <>
-          <ProgressBar className="mt-3" value={wave.progress_pct} />
-          <div className="mt-4 space-y-3">
-            {wave.items.map((item) => (
-              <div key={item.id} className="rounded-xl border border-line p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <b>{item.skill_name}</b>
-                  {item.step === 'done' && <Badge tone="ok">Done</Badge>}
-                </div>
-                <p className="text-[13px] text-ink-600">
-                  Level {item.from_level} to {item.to_level}{item.certificate_on_pass ? ' · Certificate on passing' : ' · Level confirmed by re-test'}
-                </p>
-                <StepChips item={item} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      <ProgressBar className="mt-3" value={wave.progress_pct} label={`${wave.progress_pct}% of this stage done`} />
+      <div className="mt-4 space-y-3">
+        {wave.items.map((item) => <SkillRow key={item.id} item={item} />)}
+      </div>
     </Card>
   )
 }
@@ -150,49 +214,55 @@ export function PathwayPage() {
   if (!isLoading && !error && !data) {
     return (
       <div className="mx-auto max-w-xl">
-        <PageHeader title="My pathway" subtitle="Gaps become waves of three skills. Each skill has four steps: learn, practise, connect, prove." />
-        <EmptyState title="Your pathway is not built yet" body="Finish your skill checks first, then build your plan. It takes one tap."
-          action={<Button onClick={() => generate.mutate(undefined)} loading={generate.isPending}>Build my pathway</Button>} />
+        <PageHeader title="My learning plan" subtitle="Built from your test results: the skills your role needs, in small stages." />
+        <EmptyState title="Your plan is not ready yet" body="Finish your tests first, then build your plan. It takes one tap."
+          action={<Button onClick={() => generate.mutate(undefined)} loading={generate.isPending}>Build my plan</Button>} />
       </div>
     )
   }
 
   const next = data?.next_step
+  const waiting = next?.action_label === 'Waiting for sign-off'
   const onNext = () => {
-    if (!next) return
-    if (next.step === 'practise' && next.action_label !== 'See status') setEvidenceFor(next.item_id)
+    if (!next || waiting) return
+    if (next.step === 'practise') setEvidenceFor(next.item_id)
     else if (next.step === 'connect') step.mutate({ itemId: next.item_id, action: 'connected' })
     else if (next.href) navigate(next.href)
   }
+  const items = data?.waves.flatMap((w) => w.items) ?? []
+  const skillsDone = items.filter((i) => i.step === 'done').length
+  const hoursLeft = Math.round(items.filter((i) => i.step !== 'done').reduce((sum, i) => sum + i.estimated_hours, 0))
 
   return (
     <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
       {data && (
         <>
           <PageHeader
-            title={data.current_wave ? `Wave ${data.current_wave} of ${data.total_waves}` : 'My pathway'}
-            subtitle={`${data.hours_per_week} hours a week${data.target_role_name ? ` · towards ${data.target_role_name}` : ''}`}
-            tag={data.status === 'active' ? <Badge className="mb-2">{data.approved_by_name ? 'Manager approved' : 'Active'}</Badge>
-              : data.status === 'pending_approval' ? <Badge tone="warn" className="mb-2">Waiting for manager approval</Badge> : <Badge tone="ok" className="mb-2">Completed</Badge>}
+            title="My learning plan"
+            subtitle={`${skillsDone} of ${items.length} skills done · about ${hoursLeft} hours left · ${data.hours_per_week} hours a week${data.target_role_name ? ` · towards ${data.target_role_name}` : ''}`}
+            tag={data.status === 'active' ? <Badge className="mb-2">{data.approved_by_name ? 'Approved by your manager' : 'Active'}</Badge>
+              : data.status === 'pending_approval' ? <Badge tone="warn" className="mb-2">Waiting for your manager to approve</Badge> : <Badge tone="ok" className="mb-2">Completed</Badge>}
           />
-          <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
             <Stagger className="order-2 space-y-4 lg:order-1">
-              {data.waves.map((wave) => <WaveCard key={wave.number} wave={wave} />)}
+              {data.waves.map((wave, i) => <StageCard key={wave.number} wave={wave} previous={data.waves[i - 1]?.number} />)}
             </Stagger>
             <div className="order-1 lg:order-2">
-              <Panel className="lg:sticky lg:top-20">
-                <Eyebrow>Your next step</Eyebrow>
+              <Panel className="lg:sticky lg:top-24">
+                <Eyebrow>Do this next</Eyebrow>
                 {next ? (
                   <>
                     <h2 className="mt-2 font-serif text-2xl text-white">{next.title}</h2>
-                    <p className="mt-3 text-white/75">{next.description}</p>
-                    <Button variant="gold" size="lg" block className="mt-6" onClick={onNext} loading={step.isPending}
-                      disabled={next.action_label === 'See status'}>{next.action_label}</Button>
+                    <p className="mt-3 text-white/80">{next.description}</p>
+                    <Button variant="gold" size="lg" block className="mt-6" onClick={onNext} loading={step.isPending} disabled={waiting}>{next.action_label}</Button>
                   </>
                 ) : (
-                  <p className="mt-2 text-white/80">{data.status === 'pending_approval' ? 'Your manager will approve your plan soon.' : 'All done. Great work!'}</p>
+                  <p className="mt-2 text-white/85">{data.status === 'pending_approval' ? 'Your manager will approve your plan soon.' : 'All done. Great work!'}</p>
                 )}
-                {data.total_waves > 1 && <p className="mt-6 text-sm italic text-white/60">Later waves open when this wave is done.</p>}
+                <div className="mt-6 border-t border-white/20 pt-4 text-sm text-white/85">
+                  <p className="font-semibold text-white">How each skill works</p>
+                  <ol className="mt-2 space-y-1">{STEPS.map((s, i) => <li key={s}>{i + 1}. {STEP_LABEL[s]}</li>)}</ol>
+                </div>
               </Panel>
             </div>
           </div>
@@ -205,7 +275,7 @@ export function PathwayPage() {
                 Send to my manager
               </Button>
             </>}>
-            <Field label="Your practice" hint="At least 10 characters.">
+            <Field label="What you did" hint="At least 10 characters.">
               <Textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="I used the checklist on a parent call about fees…" />
             </Field>
           </Dialog>
@@ -222,7 +292,7 @@ export function MessagesPage() {
   const rsvp = useRsvp()
   const navigate = useNavigate()
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader title="Messages" subtitle="Reminders, invitations and updates."
         actions={data?.unread ? <Button variant="outline" size="sm" onClick={() => markRead.mutate('all')}><CheckCheck className="size-4" />Mark all read</Button> : null} />
       <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>

@@ -7,6 +7,9 @@ Values here are only the starting point: admins override them through the
 from typing import Any
 
 DEFAULTS: dict[str, tuple[Any, str]] = {
+    # Sign-up
+    "identity.allow_self_signup": (True, "Employees can create their own account and pick their job role."),
+    "identity.signup_email_domains": ([], 'Only these email domains may sign up, e.g. ["example.com"]. Empty = any.'),
     # Skills (sheet 04)
     "skills.level_bands": (
         [[0, 0], [20, 1], [40, 2], [60, 3], [75, 4], [90, 5]],
@@ -30,8 +33,21 @@ DEFAULTS: dict[str, tuple[Any, str]] = {
     "reminders.max_per_week": (3, "Most reminders one person gets in a week."),
     "reminders.default_window": (["11:00", "13:00"], "Default best time window."),
     "reminders.holidays": ([], "Dates (YYYY-MM-DD) with no messages."),
+    "reminders.due_stages_days": ([7, 2, 0], "Days before the due date to remind (0 = on the due date)."),
     "safety.undo_minutes": (10, "Minutes during which a bulk send can be undone."),
     "workflows.automatic_sends_paused": (False, "Stop all automatic sends."),
+    # Course quick checks
+    "learning.quiz_pass_mark": (60, "Default pass mark (0-100) for a course quick check when the course sets none."),
+    "learning.quiz_max_attempts": (3, "How many times a learner may take a course quick check. 0 means no limit."),
+    "learning.written_review_below": (
+        0.7,
+        "Written answers scored with less certainty than this (0-1) are checked by a person before the result counts.",
+    ),
+    "learning.quiz_default_size": (10, "Questions the quiz writer drafts for a course (multiple choice + written)."),
+    "learning.quiz_written_count": (2, "How many of those are short written scenarios."),
+    "learning.quiz_minutes_per_question": (1.5, "Time limit the quiz writer suggests per question."),
+    "learning.default_due_days": (14, "Due date used when a training request gives none (days from today)."),
+    "learning.helper_use_knowledge": (True, "The course builder may use published company-wide Knowledge Hub items."),
     # Assessment and proctoring (sheet 09)
     "proctoring.snapshot_seconds": (45, "Seconds between camera snapshots."),
     "proctoring.retention_days": (30, "Days to keep proctoring pictures after a case closes."),

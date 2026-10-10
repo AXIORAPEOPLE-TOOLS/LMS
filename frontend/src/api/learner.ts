@@ -55,7 +55,7 @@ export const useCompliance = () =>
 
 // ---- mutations --------------------------------------------------------------------------
 export const useUpdatePreferences = () =>
-  useApiMutation((body: Partial<Pick<Me, 'locale' | 'show_name_on_boards' | 'reminder_window' | 'reminder_channels' | 'hours_per_week'>>) =>
+  useApiMutation((body: Partial<Pick<Me, 'locale' | 'show_name_on_boards' | 'reminder_window' | 'reminder_channels' | 'hours_per_week' | 'phone'>>) =>
     api.patch<Me>('/me/preferences', body), { invalidate: [keys.me], success: 'Saved' })
 
 export const useCompleteLesson = (courseId: UUID) =>
@@ -67,8 +67,12 @@ export const useSimulation = () =>
     api.post<{ correct: boolean; first_wrong_step: number | null; message: string; points: number }>(`/lessons/${lessonId}/simulation`, { order }))
 
 export const useSubmitQuiz = (courseId: UUID) =>
-  useApiMutation((answers: Record<UUID, number>) =>
-    api.post<{ score: number; passed: boolean; pass_mark: number | null; results: { question_id: UUID; correct: boolean; right_index: number; reason: string }[]; course_completed: boolean }>(`/courses/${courseId}/quiz`, { answers }),
+  useApiMutation((answers: Record<UUID, number | string>) =>
+    api.post<{
+      score: number; passed: boolean; pass_mark: number; correct_count: number; total: number; course_completed: boolean
+      results: { question_id: UUID; correct: boolean; right_index: number | null; reason: string | null; marks: number | null; max_marks: number | null; feedback: string | null }[]
+      attempts_used: number; attempts_left: number | null; can_retake: boolean; under_review: boolean
+    }>(`/courses/${courseId}/quiz`, { answers }),
     { invalidate: [keys.course(courseId), keys.home, keys.assignments, keys.certificates, keys.profile] })
 
 export const useStartAttempt = () =>

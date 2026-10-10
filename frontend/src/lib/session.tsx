@@ -11,6 +11,7 @@ interface SessionValue {
   isLoading: boolean
   signedIn: boolean
   signIn: (email: string, password: string) => Promise<void>
+  signInWithToken: (token: string) => void
   signOut: () => void
   has: (...roles: string[]) => boolean
 }
@@ -45,14 +46,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setSignedIn(true)
   }, [client])
 
+  const signInWithToken = useCallback((token: string) => {
+    setToken(token)
+    client.clear()
+    setSignedIn(true)
+  }, [client])
+
   const value = useMemo<SessionValue>(() => ({
     me: meQuery.data,
     isLoading: signedIn && meQuery.isLoading,
     signedIn,
     signIn,
+    signInWithToken,
     signOut,
     has: (...roles) => roles.some((role) => meQuery.data?.system_roles.includes(role)),
-  }), [meQuery.data, meQuery.isLoading, signedIn, signIn, signOut])
+  }), [meQuery.data, meQuery.isLoading, signedIn, signIn, signInWithToken, signOut])
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 }

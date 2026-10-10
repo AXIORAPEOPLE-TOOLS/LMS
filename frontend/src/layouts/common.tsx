@@ -29,12 +29,12 @@ export function AppSwitcher({ current, dark }: { current: 'learning' | 'knowledg
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold', dark ? 'text-white hover:bg-white/10' : 'text-ink-700 hover:bg-forest-100')}>
-        <span className="grid grid-cols-2 gap-0.5" aria-hidden>{[0, 1, 2, 3].map((i) => <span key={i} className="size-1.5 rounded-[2px] bg-current" />)}</span>
+        <span className="grid grid-cols-2 gap-0.5" aria-hidden>{[0, 1, 2, 3].map((i) => <span key={i} className="size-1.5 rounded-xs bg-current" />)}</span>
         <span className="hidden sm:inline">{t('nav.switchApp')}</span>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={6} className="z-50 w-60 rounded-xl border border-line bg-surface p-1.5 shadow-lg">
-          <DropdownMenu.Item className={item} onSelect={() => navigate('/')}>
+          <DropdownMenu.Item className={item} onSelect={() => navigate('/home')}>
             <GraduationCap className="size-5 text-forest-700" />
             <span><b className="block">{t('app.learning')}</b><span className="text-ink-600">Courses, skills, pathways</span></span>
             {current === 'learning' && <span className="ml-auto size-2 rounded-full bg-ok-600" />}

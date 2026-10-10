@@ -26,7 +26,7 @@ export function AccessPage() {
   return (
     <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
       {data && (
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <Link to={`/knowledge/items/${data.item_id}`} className="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-forest-700"><ArrowLeft className="size-4" />Back to the page</Link>
           <PageHeader title={`${data.item_title}: who can do what`} actions={data.can_change && <Button size="sm" onClick={() => setAdding(true)}><Plus className="size-4" />Give access</Button>} />
           <Card>

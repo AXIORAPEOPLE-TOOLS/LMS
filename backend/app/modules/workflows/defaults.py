@@ -71,6 +71,33 @@ DEFAULT_WORKFLOWS: list[dict[str, Any]] = [
         "approval_label": "No approval needed",
         "mode": "auto",
     },
+    {
+        "code": "deadline_reminders",
+        "name": "Due-date reminders",
+        "trigger": "schedule:daily",
+        "trigger_label": "7 days before, 2 days before and on the due date",
+        "actions": ["send_deadline_reminders"],
+        "approval_label": "No approval needed",
+        "mode": "auto",
+    },
+    {
+        "code": "overdue_after_deadline",
+        "name": "Overdue list after the deadline",
+        "trigger": "schedule:daily",
+        "trigger_label": "The day after a due date",
+        "actions": ["overdue_after_deadline"],
+        "approval_label": "No approval needed",
+        "mode": "auto",
+    },
+    {
+        "code": "results_summary",
+        "name": "Results summary for HR and managers",
+        "trigger": "schedule:daily",
+        "trigger_label": "Every morning, for yesterday's tests",
+        "actions": ["results_summary"],
+        "approval_label": "No approval needed",
+        "mode": "auto",
+    },
 ]
 
 

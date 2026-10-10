@@ -16,6 +16,9 @@ from app.modules.identity.schemas import (
     DepartmentIn,
     MeOut,
     PreferencesUpdate,
+    SignupChoice,
+    SignupIn,
+    SignupOptionsOut,
     UploadCommitIn,
     UploadCommitOut,
     UploadPreviewOut,
@@ -32,6 +35,7 @@ VALID_ROLES = {r.value for r in SystemRole}
 
 class AuthService:
     def __init__(self, session: AsyncSession) -> None:
+        self.session = session
         self.users = UserRepository(session)
         self.audit = AuditService(session)
 
@@ -40,6 +44,49 @@ class AuthService:
         if user is None or not verify_password(password, user.password_hash) or not user.is_active:
             raise AuthenticationError("That email and password do not match.")
         self.audit.record("auth.login", "user", user.id, actor_id=user.id)
+        return create_access_token(user.id)
+
+    # ---- self sign-up: name, email, password, job role (the role brings its skills) ----------
+    async def signup_options(self) -> SignupOptionsOut:
+        from app.modules.settings.service import SettingsService
+
+        settings = SettingsService(self.session)
+        allowed = bool(await settings.get("identity.allow_self_signup"))
+        domains = list(await settings.get("identity.signup_email_domains"))
+        if not allowed:
+            return SignupOptionsOut(allowed=False, email_domains=[], roles=[], departments=[])
+        roles = await JobRoleRepository(self.session).list(order_by=JobRole.name)
+        departments = await DepartmentRepository(self.session).list(order_by=Department.name)
+        return SignupOptionsOut(
+            allowed=True,
+            email_domains=domains,
+            roles=[SignupChoice(id=r.id, name=r.name, group=r.family) for r in roles],
+            departments=[SignupChoice(id=d.id, name=d.name) for d in departments],
+        )
+
+    async def signup(self, data: SignupIn) -> str:
+        options = await self.signup_options()
+        if not options.allowed:
+            raise ValidationFailedError("Sign-up is turned off. Ask HR to add you.")
+        domain = data.email.rsplit("@", 1)[-1].lower()
+        if options.email_domains and domain not in {d.lower() for d in options.email_domains}:
+            raise ValidationFailedError(f"Use your work email ({', '.join(options.email_domains)}).")
+        if await JobRoleRepository(self.session).get(data.job_role_id) is None:
+            raise ValidationFailedError("Choose your job role from the list.")
+        if data.department_id and await DepartmentRepository(self.session).get(data.department_id) is None:
+            raise ValidationFailedError("Choose your department from the list.")
+        user = await UserService(self.session).create_user(
+            UserCreate(
+                email=data.email,
+                full_name=data.full_name.strip(),
+                password=data.password,
+                job_role_id=data.job_role_id,
+                department_id=data.department_id,
+                system_roles=["learner"],
+            ),
+            actor=None,
+        )
+        self.audit.record("user.signed_up", "user", user.id, actor_id=user.id, job_role_id=str(data.job_role_id))
         return create_access_token(user.id)
 
 
@@ -55,11 +102,14 @@ class UserService:
         dept = await self.departments.get(user.department_id) if user.department_id else None
         role = await self.roles.get(user.job_role_id) if user.job_role_id else None
         manager = await self.users.get(user.manager_id) if user.manager_id else None
+        from app.modules.knowledge.permissions import can_open_hub  # late import: knowledge depends on identity
+
         return MeOut.model_validate(user).model_copy(
             update={
                 "department_name": dept.name if dept else None,
                 "job_role_name": role.name if role else None,
                 "manager_name": manager.full_name if manager else None,
+                "can_open_knowledge": await can_open_hub(self.session, user),
             }
         )
 
@@ -67,6 +117,8 @@ class UserService:
         for key, value in data.model_dump(exclude_unset=True).items():
             if key == "reminder_channels" and value is not None:
                 value = {**(user.reminder_channels or {}), **value}
+            if key == "phone":
+                value = (value or "").strip() or None
             setattr(user, key, value)
         await self.session.flush()
         return user

@@ -16,4 +16,4 @@ def configure_logging(environment: str) -> None:
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
     )
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")

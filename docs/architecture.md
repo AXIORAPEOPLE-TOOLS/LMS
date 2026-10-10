@@ -67,11 +67,14 @@ The Knowledge Hub depends only on identity, notifications, settings, audit and a
 `suggest_knowledge`, `answer`. Implementations:
 - `RulesProvider` — offline, deterministic (tests, fallback).
 - `GroqProvider` — Groq chat completions in JSON mode (`LMS_GROQ_MODEL`, default `openai/gpt-oss-120b`), wrapped in a circuit breaker and falling back to rules on any failure.
+Helpers (`app/modules/agents/`) add five operations used step by step: `plan_course`, `write_module`, `draft_quiz`,
+`score_written` and `read_request` (see `docs/core-flows.md` A4). Each has a rules version, so nothing depends on Groq.
 All outputs are suggestions: course drafts need expert approval; knowledge suggestions are saved only when the person accepts. The UI never labels anything as "AI".
 
 ## Key flows
 1. **New joiner**: `POST /users` → `user.created` → workflow engine. Mode *hybrid* → one pending batch (preview) → admin approves → assignments, skill checks, welcome.
 2. **Skill check → pathway**: attempt submitted → level recorded (`skill.level_recorded`) → points + pathway prove-step check → when all role skills are checked, learner/manager builds waves.
+3a. **Helpers**: `POST /admin/helpers/course|quiz` → `agent_runs` row → `agents.run` job (authoring queue) → each step committed so the page shows progress → waits for the expert; `POST /admin/helpers/assign` reads the request at once and waits for HR to confirm.
 3. **Course from SOP**: upload → `SourceDocument` → `courses.draft_from_source` job (authoring queue) → assistant draft → notify creator → submit to expert → approve → published.
 4. **Mandatory proctored test**: consent → snapshots/flags → submit → flags? `under_review` : finalize → reviewer decision (note required) → certificate via `certification.passed` → appeal to a different reviewer.
 5. **Reminders**: `workflows.daily` task → completion-reminders workflow (mode decides) → planned per person inside their window → delivered by job with delay → dropped if the item was finished meanwhile.

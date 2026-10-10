@@ -63,6 +63,7 @@ class Course(IdMixin, TimestampMixin, Base):
     knowledge_item_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     # Certification courses may end in a (proctored) test instead of the course quiz.
     final_test_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("skill_tests.id", ondelete="SET NULL"), nullable=True)
+    quiz_time_limit_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class LessonKind(StrEnum):
@@ -99,6 +100,10 @@ class CourseQuestion(IdMixin, Base):
     options: Mapped[list[str]] = mapped_column(JSON)
     answer_index: Mapped[int] = mapped_column(Integer)
     reason: Mapped[str] = mapped_column(Text, default="")
+    # choice = pick one option; written = a few lines scored against the rubric (a person checks unsure scores).
+    kind: Mapped[str] = mapped_column(String(12), default="choice", server_default="choice")
+    model_answer: Mapped[str] = mapped_column(Text, default="", server_default="")
+    rubric: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)  # [{"point": str, "marks": int}]
 
 
 class AssignmentStatus(StrEnum):
@@ -121,6 +126,7 @@ class Assignment(IdMixin, TimestampMixin, Base):
     is_mandatory: Mapped[bool] = mapped_column(Boolean, default=False)
     progress_pct: Mapped[int] = mapped_column(Integer, default=0)
     quiz_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quiz_attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     source: Mapped[str] = mapped_column(String(20), default="manual")  # manual | workflow | pathway | self
     batch_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
@@ -138,6 +144,26 @@ class LessonProgress(IdMixin, Base):
     completed_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     minutes: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class CourseQuizAttempt(IdMixin, Base):
+    """Every course quick-check attempt is kept (never overwritten): answers, score, pass/fail."""
+
+    __tablename__ = "course_quiz_attempts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    course_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    assignment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
+    attempt_no: Mapped[int] = mapped_column(Integer)
+    answers: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)  # question id -> option index or written text
+    score: Mapped[int] = mapped_column(Integer)
+    passed: Mapped[bool] = mapped_column(Boolean)
+    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    # question id -> {"marks", "max", "confidence", "feedback", "points_met"} for written answers.
+    written: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    review_status: Mapped[str] = mapped_column(String(12), default="none", server_default="none", index=True)  # none|pending|done
+    reviewer_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
 
 class LiveSession(IdMixin, TimestampMixin, Base):

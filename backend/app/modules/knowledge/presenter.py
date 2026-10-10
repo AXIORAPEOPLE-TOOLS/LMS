@@ -1,6 +1,6 @@
 """Turns items into API summaries with names, paths and review status (batched, no N+1)."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from uuid import UUID
 
 from sqlalchemy import select
@@ -68,7 +68,7 @@ class Presenter:
     async def status_of(self, item: KnowledgeItem) -> str:
         return rules.review_status(item.next_review_on, today(), await self.due_soon_days(), status=item.status)
 
-    async def names(self, ids: set[UUID | None]) -> dict[UUID, str]:
+    async def names(self, ids: Iterable[UUID | None]) -> dict[UUID, str]:
         clean = {i for i in ids if i}
         if not clean:
             return {}

@@ -11,7 +11,7 @@ import { Stagger } from '@/components/motion'
 import { EASE } from '@/lib/motion-tokens'
 import { QueryState } from '@/components/SystemStatus'
 import {
-  Button, ButtonLink, Card, Dialog, EmptyState, Field, Input, Notice, Panel, ProgressBar, SkeletonPage, StatusPill, Textarea,
+  Button, ButtonLink, Card, Dialog, EmptyState, Field, Input, Notice, PageHeader, Panel, ProgressBar, SkeletonPage, StatusPill, Textarea,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { cn, fmt } from '@/lib/utils'
@@ -307,14 +307,14 @@ export function CertificatesPage() {
     }
   }
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="mb-5 text-3xl">My certificates</h1>
+    <div>
+      <PageHeader title="My certificates" subtitle="Download, share or check when each one needs renewing." />
       <QueryState isLoading={isLoading} error={error} hasData={!!data} skeleton={<SkeletonPage />} onRetry={refetch}>
         {data?.length === 0 && <EmptyState icon={<Award className="size-8" />} title="No certificates yet" body="Finish a certification course or a mandatory test to earn one." />}
-        <Stagger className="space-y-4">
+        <Stagger className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {data?.map((c) => (
-            <div key={c.id}>
-              <div className="rounded-[var(--radius-card)] border-2 border-gold-500 bg-surface p-6 text-center">
+            <div key={c.id} className="flex flex-col">
+              <div className="flex-1 rounded-card border-2 border-gold-500 bg-linear-to-b from-gold-100/60 to-surface p-6 text-center">
                 <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-gold-500">Certificate of completion</p>
                 <h2 className="mt-2 text-2xl">{c.title}</h2>
                 <p className="mt-1 text-sm text-ink-600">{fmt.date(c.issued_at)}{c.valid_until && ` · valid until ${fmt.date(c.valid_until)}`}</p>
