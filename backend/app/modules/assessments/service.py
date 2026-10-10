@@ -4,14 +4,13 @@ import base64
 import random
 from collections.abc import Sequence
 from datetime import timedelta
-from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationFailedError
+from app.core.storage import get_storage
 from app.modules.assessments.models import (
     FLAG_SEVERITY,
     AttemptStatus,
@@ -209,7 +208,7 @@ class AssessmentService:
             raise ValidationFailedError("This test is not supervised.")
         image_path = None
         if image_base64:
-            image_path = _store_snapshot(attempt.id, at_seconds, image_base64)
+            image_path = await _store_snapshot(attempt.id, at_seconds, image_base64)
         if kind == "tab_switch":
             existing = (
                 await self.session.scalars(
@@ -505,12 +504,12 @@ class AssessmentService:
             previous_note=attempt.review_note if attempt.appeal_status else None,
         )
 
-    async def snapshot_path(self, event_id: UUID, reviewer: User) -> Path:
+    async def snapshot(self, event_id: UUID, reviewer: User) -> bytes:
         event = await self.session.get(ProctorEvent, event_id)
         if event is None or not event.image_path:
             raise NotFoundError("There is no picture for this flag.")
         self.audit.record("proctoring.snapshot_viewed", "proctor_event", event.id, actor_id=reviewer.id)
-        return Path(event.image_path)
+        return await get_storage().read(event.image_path)
 
     async def decide(self, attempt_id: UUID, decision: str, note: str, reviewer: User) -> TestAttempt:
         attempt = await self.session.get(TestAttempt, attempt_id)
@@ -595,7 +594,7 @@ class AssessmentService:
         ).all()
         for event in events:
             if event.image_path:
-                Path(event.image_path).unlink(missing_ok=True)
+                await get_storage().delete(event.image_path)
             event.image_path = None
         await self.session.execute(
             delete(ProctorEvent).where(ProctorEvent.attempt_id.in_(closed), ProctorEvent.kind == "snapshot")
@@ -603,16 +602,12 @@ class AssessmentService:
         return len(events)
 
 
-def _store_snapshot(attempt_id: UUID, at_seconds: int, image_base64: str) -> str:
+async def _store_snapshot(attempt_id: UUID, at_seconds: int, image_base64: str) -> str:
     try:
         data = base64.b64decode(image_base64.split(",")[-1], validate=True)
     except ValueError as exc:
         raise ValidationFailedError("The picture could not be read.") from exc
-    folder = Path(get_settings().upload_dir) / "proctoring" / str(attempt_id)
-    folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{at_seconds:06d}.jpg"
-    path.write_bytes(data)
-    return str(path)
+    return await get_storage().save(f"proctoring/{attempt_id}/{at_seconds:06d}.jpg", data, "image/jpeg")
 
 
 def _result_message(attempt: TestAttempt, test: SkillTest, left: int) -> str:

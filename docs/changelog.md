@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-10 — Three deploy profiles: development, single, scalable (AWS)
+- `LMS_DEPLOY_PROFILE` picks the queue, file storage and scheduler; each part can be overridden; a profile missing something stops at start with a plain message.
+- **SQS queue** (`app/core/sqs_queue.py`): batches of 10, dead-letter queues, growing retry delays, long jobs kept hidden while running, delays over 15 minutes, graceful stop; the worker consumes BullMQ or SQS with the same START/DONE/FAILED log and a shared per-second delivery cap.
+- **File storage** (`app/core/storage.py`): local folder or S3 behind one interface; knowledge attachments and proctoring pictures use it; old file paths still work.
+- **Deploy files**: one Docker image (`deploy/Dockerfile`), `compose.simple.yml` (one container), `compose.single.yml` (API + worker + Redis), `compose.aws-local.yml` (ElasticMQ + MinIO), Terraform for AWS ECS on EC2 (Graviton on-demand + Spot), ALB, SQS, S3, EventBridge, alarms, autoscaling (`deploy/aws`).
+- **Deploy workflow**: all CI checks → ARM64 image → ECR → migration task → rolling update with automatic rollback. CI also builds the image, checks the compose files and validates the Terraform.
+
 ## 2026-10-10 — CI
 - GitHub Actions: secret scan, backend lint/tests/docs drift, PostgreSQL migrations + tests, frontend lint/build, Playwright e2e. `deploy/ci/check.sh` runs the same locally. Dependabot for uv, npm and actions.
 

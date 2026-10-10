@@ -12,8 +12,8 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, ValidationFailedError
+from app.core.storage import get_storage
 from app.modules.ai.service import extract_pages, get_assistant
 from app.modules.audit.service import AuditService
 from app.modules.certificates.service import add_months
@@ -123,29 +123,24 @@ class ItemService:
         if len(content) > MAX_UPLOAD_BYTES:
             raise ValidationFailedError("The file is larger than 25 MB.")
         safe = Path(filename).name or "file"
-        folder = Path(get_settings().upload_dir) / "knowledge"
-        folder.mkdir(parents=True, exist_ok=True)
-        path = folder / f"{uuid.uuid4().hex}-{safe}"
-        path.write_bytes(content)
+        key = await get_storage().save(f"knowledge/{uuid.uuid4().hex}-{safe}", content)
         try:
             text = "\n".join(p.text for p in extract_pages(safe, content))
         except ValidationFailedError:
             text = ""  # images, spreadsheets: stored, just not searchable by text
-        upload = KnowledgeUpload(
-            filename=safe, path=str(path), size_bytes=len(content), text=text[:200_000], uploaded_by_id=user.id
-        )
+        upload = KnowledgeUpload(filename=safe, path=key, size_bytes=len(content), text=text[:200_000], uploaded_by_id=user.id)
         self.session.add(upload)
         await self.session.flush()
         return upload
 
-    async def download(self, item_id: UUID, upload_id: UUID, user: User) -> KnowledgeUpload:
+    async def download(self, item_id: UUID, upload_id: UUID, user: User) -> tuple[KnowledgeUpload, bytes]:
         item, _ = await self.policy.get_readable(item_id, user)
         if not any(str(a.get("upload_id")) == str(upload_id) for a in item.attachments):
             raise NotFoundError("That file is not part of this item.")
         upload = await self.session.get(KnowledgeUpload, upload_id)
         if upload is None:
             raise NotFoundError("We could not find that file.")
-        return upload
+        return upload, await get_storage().read(upload.path)
 
     async def suggest(self, data: SuggestIn, user: User) -> SuggestionOut:
         """The assistant suggests kind, category, owner, backup and review date. Nothing is saved."""

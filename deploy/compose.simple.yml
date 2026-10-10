@@ -1,0 +1,18 @@
+# Profile "development", deployed: ONE container does everything (API, jobs inline, scheduler).
+# For a pilot or a small team. Needs only a PostgreSQL URL (Neon).
+#   docker compose -f deploy/compose.simple.yml --env-file backend/.env up -d --build
+services:
+  app:
+    build: { context: .., dockerfile: deploy/Dockerfile }
+    image: lms:latest
+    restart: unless-stopped
+    ports: ["8000:8000"]
+    env_file: ../backend/.env
+    environment:
+      LMS_DEPLOY_PROFILE: development
+      LMS_QUEUE_BACKEND: inline
+      LMS_SCHEDULER_ENABLED: "true" # no worker: the API runs the 5-minute scheduler
+    volumes:
+      - uploads:/data/uploads
+volumes:
+  uploads:

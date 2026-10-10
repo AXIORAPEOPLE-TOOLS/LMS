@@ -1,0 +1,93 @@
+# Deploy the "scalable" profile to AWS (deploy/aws). Runs only after every CI check passes.
+# Triggers: a version tag (git tag v1.2.0 && git push --tags) or "Run workflow" in the Actions tab.
+#
+# One-time setup (docs/deployment.md):
+#   repo variables: AWS_REGION (ap-southeast-1), ECS_CLUSTER (lms), ECR_REPOSITORY (lms)
+#   repo secret:    AWS_DEPLOY_ROLE_ARN (IAM role trusted for GitHub OIDC; no long-lived keys)
+name: Deploy
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never stop a deploy half way
+
+permissions:
+  contents: read
+  id-token: write # OIDC to AWS
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production # add required reviewers in GitHub settings for a manual approval step
+    timeout-minutes: 40
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLUSTER: ${{ vars.ECS_CLUSTER }}
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push the image (ARM64 for Graviton)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: New task definition revisions with this image
+        id: taskdefs
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+        run: |
+          for family in migrate api worker; do
+            aws ecs describe-task-definition --task-definition "$CLUSTER-$family" --query taskDefinition > td.json
+            jq --arg img "$IMAGE" '.containerDefinitions[0].image = $img
+              | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+              td.json > td-new.json
+            arn=$(aws ecs register-task-definition --cli-input-json file://td-new.json --query taskDefinition.taskDefinitionArn --output text)
+            echo "$family=$arn" >> "$GITHUB_OUTPUT"
+            echo "$family -> $arn"
+          done
+
+      - name: Run database migrations (one task, before any new code serves traffic)
+        run: |
+          task=$(aws ecs run-task --cluster "$CLUSTER" --task-definition "${{ steps.taskdefs.outputs.migrate }}" \
+            --capacity-provider-strategy capacityProvider="$CLUSTER-base",weight=1 \
+            --started-by "deploy-${IMAGE_TAG:0:7}" --query 'tasks[0].taskArn' --output text)
+          echo "Migration task: $task"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$task"
+          code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task" --query 'tasks[0].containers[0].exitCode' --output text)
+          if [ "$code" != "0" ]; then echo "::error::Migrations failed (exit $code). Nothing was deployed. See CloudWatch /ecs/$CLUSTER."; exit 1; fi
+
+      - name: Roll out API and worker
+        run: |
+          aws ecs update-service --cluster "$CLUSTER" --service api --task-definition "${{ steps.taskdefs.outputs.api }}" > /dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service worker --task-definition "${{ steps.taskdefs.outputs.worker }}" > /dev/null
+          # The deployment circuit breaker rolls back by itself if the new tasks do not become healthy.
+          aws ecs wait services-stable --cluster "$CLUSTER" --services api worker
+          echo "Deployed ${IMAGE_TAG:0:7}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,9 @@
+# Copy to prod.tfvars (gitignored) and fill in.
+name            = "lms"
+region          = "ap-southeast-1"
+public_url      = "https://learn.example.com"
+certificate_arn = ""   # ACM certificate ARN for HTTPS; empty = HTTP only while testing
+# Secrets Manager secret (JSON) with keys LMS_DATABASE_URL, LMS_JWT_SECRET, LMS_GROQ_API_KEY, LMS_REDIS_URL
+# (every key must exist; use "" for ones you do not use).
+secrets_arn     = "arn:aws:secretsmanager:ap-southeast-1:123456789012:secret:lms/prod-AbCdEf"
+alarm_email     = "ops@example.com"

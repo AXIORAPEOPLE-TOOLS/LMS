@@ -12,7 +12,6 @@ registry, so adding a service (SMS, S3, SSO...) means one `register_component`.
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
@@ -101,12 +100,9 @@ def _channel_check(key: str) -> Callable[[], Awaitable[str]]:
 
 
 async def _check_storage() -> str:
-    path = Path(get_settings().upload_dir)
-    path.mkdir(parents=True, exist_ok=True)
-    probe = path / ".write-probe"
-    probe.write_text("ok")
-    probe.unlink()
-    return "up"
+    from app.core.storage import get_storage
+
+    return await get_storage().probe()
 
 
 for _component in (

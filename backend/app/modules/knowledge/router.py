@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.core.deps import CurrentUser, SessionDep, require_roles
 from app.core.errors import PermissionDeniedError
@@ -48,6 +48,7 @@ from app.modules.knowledge.schemas import (
     SuggestionOut,
     UploadOut,
 )
+from app.shared.files import file_response
 from app.shared.schemas import Schema
 
 
@@ -209,9 +210,9 @@ async def decide_revision(revision_id: UUID, data: DecisionIn, session: SessionD
 
 
 @router.get("/items/{item_id}/files/{upload_id}")
-async def download(item_id: UUID, upload_id: UUID, session: SessionDep, user: CurrentUser) -> FileResponse:
-    upload = await ItemService(session).download(item_id, upload_id, user)
-    return FileResponse(upload.path, filename=upload.filename)
+async def download(item_id: UUID, upload_id: UUID, session: SessionDep, user: CurrentUser) -> Response:
+    upload, content = await ItemService(session).download(item_id, upload_id, user)
+    return file_response(content, upload.filename)
 
 
 @router.post("/items/{item_id}/course")

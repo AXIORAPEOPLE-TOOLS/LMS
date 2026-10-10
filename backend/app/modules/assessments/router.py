@@ -2,7 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.core.deps import AdminUser, CurrentUser, SessionDep, require_roles
 from app.modules.assessments.schemas import (
@@ -122,10 +122,10 @@ async def review_case(attempt_id: UUID, session: SessionDep, reviewer: ReviewerU
     return await AssessmentService(session).review_case(attempt_id, reviewer)
 
 
-@router.get("/proctoring/events/{event_id}/image", response_class=FileResponse)
-async def snapshot(event_id: UUID, session: SessionDep, reviewer: ReviewerUser) -> FileResponse:
-    path = await AssessmentService(session).snapshot_path(event_id, reviewer)
-    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+@router.get("/proctoring/events/{event_id}/image")
+async def snapshot(event_id: UUID, session: SessionDep, reviewer: ReviewerUser) -> Response:
+    image = await AssessmentService(session).snapshot(event_id, reviewer)
+    return Response(image, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/proctoring/attempts/{attempt_id}/decision", status_code=204)

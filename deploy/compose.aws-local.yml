@@ -1,0 +1,30 @@
+# Try the "scalable" profile on your machine: ElasticMQ (speaks SQS) + MinIO (speaks S3).
+#   docker compose -f deploy/compose.aws-local.yml up -d
+# then in backend/.env (or the shell):
+#   LMS_DEPLOY_PROFILE=scalable
+#   LMS_SQS_ENDPOINT_URL=http://localhost:9324
+#   LMS_S3_ENDPOINT_URL=http://localhost:9000
+#   LMS_S3_BUCKET=lms-files
+#   AWS_ACCESS_KEY_ID=local  AWS_SECRET_ACCESS_KEY=localsecret  AWS_REGION=ap-southeast-1
+# and run the API and `uv run python -m app.worker` as usual. Queues are created on first use.
+services:
+  sqs:
+    image: softwaremill/elasticmq-native:1.6.11
+    ports: ["9324:9324", "9325:9325"] # 9325 = web UI with queue depths
+  s3:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports: ["9000:9000", "9001:9001"] # 9001 = MinIO console
+    environment:
+      MINIO_ROOT_USER: local
+      MINIO_ROOT_PASSWORD: localsecret
+    volumes:
+      - s3:/data
+  s3-bucket:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on: [s3]
+    entrypoint: >
+      sh -c "until mc alias set local http://s3:9000 local localsecret; do sleep 1; done;
+             mc mb --ignore-existing local/lms-files"
+volumes:
+  s3:

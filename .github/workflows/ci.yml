@@ -7,6 +7,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call: # the deploy workflow runs every check first
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -121,6 +122,35 @@ jobs:
           name: frontend-dist
           path: frontend/dist
           retention-days: 7
+
+  deploy-files:
+    name: Deploy files - Docker image, Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Image builds (the one used by every profile)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Compose files are valid
+        run: |
+          touch backend/.env
+          for f in deploy/compose.simple.yml deploy/compose.single.yml deploy/compose.aws-local.yml; do docker compose -f "$f" config -q; done
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.4
+      - name: Terraform format and validate
+        working-directory: deploy/aws
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
 
   e2e:
     name: End-to-end (Playwright, phone + desktop)

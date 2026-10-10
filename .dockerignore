@@ -1,0 +1,14 @@
+# Keep secrets, dependencies and build output out of the image
+**/.env
+**/.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+backend/uploads
+backend/*.db
+frontend/dist
+test
+.git
+.github
+docs
+**/.artifacts

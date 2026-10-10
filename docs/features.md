@@ -37,6 +37,7 @@ Update this table in the same change as the code.
 | Helpers: course from a brief, quiz writer (multiple choice + written cases, pass mark, time), assign from a plain-words request; every step shown; people approve | ✅ `/admin/helpers/*`, `agent_runs` | ✅ `/admin/helpers` | agents |
 | Written answers scored against a rubric; unsure scores checked by the course expert before they count | ✅ `/admin/written-answers` | ✅ quiz + `/admin/answers` | learning |
 | API call log (one line per call with time, user id, request id; slow calls flagged) | ✅ middleware | — | core |
+| Deploy profiles development / single (BullMQ) / scalable (SQS + S3 on AWS ECS-EC2), Docker image, compose files, Terraform, deploy workflow | ✅ config, `sqs_queue`, `storage`, `deploy/` | — | core |
 | Message log: every channel attempt; email + WhatsApp simulated (no provider yet); phone number for WhatsApp | ✅ `/admin/message-log`, `delivery_logs` | ✅ `/admin/messages`, My reminders | core_flows |
 | Learn: To do · Browse courses · Done | — | ✅ | e2e |
 

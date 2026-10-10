@@ -152,7 +152,14 @@ def get_queue() -> JobQueue:
     global _queue
     if _queue is None:
         settings = get_settings()
-        _queue = BullMQQueue(settings.redis_url) if settings.queue_backend == "bullmq" and settings.redis_url else InlineQueue()
+        if settings.queue_backend == "sqs":
+            from app.core.sqs_queue import SQSQueue
+
+            _queue = SQSQueue()
+        elif settings.queue_backend == "bullmq" and settings.redis_url:
+            _queue = BullMQQueue(settings.redis_url)
+        else:
+            _queue = InlineQueue()
     return _queue
 
 
@@ -161,7 +168,7 @@ def set_queue(queue: JobQueue | None) -> None:
     _queue = queue
 
 
-# Jobs that a sweep can safely redo later if Redis is down (the data is already in the database).
+# Jobs that a sweep can safely redo later if the queue (Redis or SQS) is down (the data is already in the database).
 SWEEPABLE = {"notifications.deliver"}
 
 
@@ -176,13 +183,13 @@ async def dispatch_pending(session: AsyncSession) -> None:
         else:
             await queue.enqueue_many(jobs)
         return
-    except Exception:  # never fail a committed request because Redis blinked
+    except Exception:  # never fail a committed request because the queue blinked
         logger.exception("Could not enqueue %s jobs; falling back", len(jobs))
     limit = get_settings().inline_fallback_limit
     inline = [j for j in jobs if j.name not in SWEEPABLE] + [j for j in jobs if j.name in SWEEPABLE][: max(0, limit)]
     skipped = len(jobs) - len(inline)
     if skipped:
-        logger.warning("%s deliveries left for the redeliver sweep (Redis down, too many to run inline)", skipped)
+        logger.warning("%s deliveries left for the redeliver sweep (queue down, too many to run inline)", skipped)
     for job in inline:
         try:
             await run_job(job.name, job.data)

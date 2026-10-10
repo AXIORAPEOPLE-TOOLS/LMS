@@ -37,6 +37,8 @@ returns a friendly 500 with a request id. See `is_connection_failure` in `app/co
 
 Scheduled tasks run in only one worker at a time (Redis lock), so running three workers does not send three reminders.
 
+With the `scalable` profile the same guarantees come from SQS: a failed job reappears after a growing delay, after 5 tries it moves to the dead-letter queue (email alarm), deliveries are capped per second through a Redis counter, and the 5-minute tick comes from EventBridge so only one worker runs it. See `docs/deployment.md`.
+
 ## API call log
 Every API call writes one line to the `api` logger:
 `GET /api/courses?q=refund -> 200 in 34 ms (user=<id> ip=127.0.0.1 rid=4f2a9c1b7e30)`.

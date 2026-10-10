@@ -54,3 +54,8 @@ desktop.ini
 *.swp
 *.log
 logs/
+
+# Terraform
+deploy/aws/.terraform/
+deploy/aws/*.tfstate*
+deploy/aws/prod.tfvars
