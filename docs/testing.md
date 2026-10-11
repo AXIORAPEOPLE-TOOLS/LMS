@@ -36,7 +36,7 @@ Never point `TEST_DATABASE_URL` at a database with real data: tests drop and rec
 - Query-count checks for list screens when optimising.
 
 ## Current status
-See `features.md` — each feature lists its test folder. Last full run: backend **111 passed**, e2e **22 passed** (phone 360 px + desktop).
+See `features.md` — each feature lists its test folder. Last full run (2026-10-11): backend **167 passed**, 4 skipped (opt-in live AWS checks, and the Postgres-only test on SQLite); also all passing on PostgreSQL 17. E2E **24 passed** (phone 360 px + desktop).
 
 E2E needs Playwright's browser once: `cd test/e2e && pnpm install && pnpm exec playwright install chromium`.
 
@@ -52,3 +52,14 @@ Runs on every push to `main` and every pull request:
 | End-to-end | Playwright on phone and desktop (own SQLite backend + Vite); report uploaded on failure |
 
 Same checks locally: `bash deploy/ci/check.sh` (add `--e2e` before pushing). Dependabot opens weekly update PRs.
+
+## Live checks against local stand-ins (opt-in)
+`docker compose -f deploy/compose.aws-local.yml up -d`, then
+`LMS_LIVE_AWS_LOCAL=1 uv run --project backend pytest test/backend/core/test_aws_local_live.py` runs the real SQS and S3
+clients against ElasticMQ and S3Mock (skipped otherwise). PostgreSQL: `TEST_DATABASE_URL=postgresql+asyncpg://...`
+runs the whole suite there, including the concurrent first-start test.
+
+## Checking each run mode by hand
+How to start every mode and the three checks for each (health, a job through the queue, a file upload) are in
+`deployment.md` → "How to run each mode, step by step" and "Check that a mode works". Last checked 2026-10-11:
+mode 1 deployed (one container), mode 2 deployed (API + worker + Redis) and mode 3 on your machine (ElasticMQ + S3Mock) all passed. Mode 3 on real AWS has not been tried yet.

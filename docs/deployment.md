@@ -21,10 +21,120 @@ at start with a plain message ("scalable is missing: LMS_S3_BUCKET"), never half
 docker compose -f deploy/compose.simple.yml --env-file backend/.env up -d --build
 # single: API + worker + Redis on one server
 docker compose -f deploy/compose.single.yml --env-file backend/.env up -d --build
-# scalable, tried on your machine: ElasticMQ (SQS) + MinIO (S3), then set the variables shown in the file
+# scalable, tried on your machine: ElasticMQ (SQS) + S3Mock (S3), then set the variables shown in the file
 docker compose -f deploy/compose.aws-local.yml up -d
 ```
 Tests and CI always use inline + SQLite (fast, no AWS, no Docker).
+
+## How to run each mode, step by step
+
+There are three modes, one per profile. Each can run **on your machine** (to try it) or **deployed** (for real use).
+
+Before any of them: `cp backend/.env.example backend/.env`, then set at least `LMS_DATABASE_URL` (Neon URL, or
+`sqlite+aiosqlite:///./lms-dev.db` on your machine) and `LMS_JWT_SECRET` (`openssl rand -hex 32`). Leave
+`LMS_QUEUE_BACKEND` and `LMS_STORAGE_BACKEND` empty so the profile decides.
+
+**How to tell which mode is running:** the worker's first log line, e.g.
+`Worker starting: profile=single ... queue_backend=bullmq storage=local`. A profile missing a setting does not
+start at all and names what is missing.
+
+### Mode 1: development (jobs inside the API, local files)
+
+**On your machine** (no Docker):
+```env
+LMS_DEPLOY_PROFILE=development
+LMS_SCHEDULER_ENABLED=true        # no worker needed: the API runs the 5-minute tasks
+```
+```bash
+cd backend && uv sync && uv run uvicorn app.main:app --reload   # http://localhost:8000/api/docs
+cd frontend && pnpm install && pnpm dev                         # open http://localhost:5173
+```
+Jobs (messages, course drafts, helpers) run right after each request, inside the API. A worker is optional; if
+you start one it says "Queue backend is inline ... only runs the scheduler" (then set `LMS_SCHEDULER_ENABLED=false`).
+
+**Deployed** as one container (pilot, small team):
+```bash
+docker compose -f deploy/compose.simple.yml --env-file backend/.env up -d --build
+docker compose -f deploy/compose.simple.yml logs -f          # watch it start
+```
+Open **http://localhost:8000**: the API serves the built React app too. Use a Neon URL (a SQLite file inside the
+container is lost when it is rebuilt). Migrations run on start; uploads live in the `uploads` volume.
+Update: `git pull && docker compose -f deploy/compose.simple.yml up -d --build`.
+
+### Mode 2: single (BullMQ worker on one Redis, local files)
+
+**On your machine** (Upstash or a local Redis, no Docker):
+```env
+LMS_DEPLOY_PROFILE=single
+LMS_REDIS_URL=rediss://default:<token>@<host>.upstash.io:6379   # or redis://localhost:6379/0
+```
+```bash
+cd backend && uv run uvicorn app.main:app --reload    # terminal 1
+cd backend && uv run python -m app.worker             # terminal 2: START / DONE / FAILED per job
+cd frontend && pnpm dev                               # terminal 3
+```
+
+**Deployed** on one server: API + worker + its own Redis. `backend/.env` also needs your real address
+(`LMS_CORS_ORIGINS` and `LMS_PUBLIC_APP_URL`, e.g. `https://learn.example.com`). Redis is inside the stack, so
+`LMS_REDIS_URL` is set for you.
+```bash
+docker compose -f deploy/compose.single.yml --env-file backend/.env up -d --build
+docker compose -f deploy/compose.single.yml logs -f worker   # jobs being taken
+docker compose -f deploy/compose.single.yml up -d --scale worker=3   # more workers on the same box
+```
+Open port 8000 (put Caddy or nginx in front for HTTPS). Redis keeps jobs on disk (append-only), so a restart loses
+nothing.
+
+### Mode 3: scalable (SQS + S3, autoscaling on AWS)
+
+**On your machine**, with fake SQS and S3 in Docker:
+```bash
+docker compose -f deploy/compose.aws-local.yml up -d    # ElasticMQ :9324, S3Mock :9000, bucket lms-files
+```
+```env
+LMS_DEPLOY_PROFILE=scalable
+LMS_SQS_ENDPOINT_URL=http://localhost:9324
+LMS_S3_ENDPOINT_URL=http://localhost:9000
+LMS_S3_BUCKET=lms-files
+LMS_SCHEDULER_SOURCE=worker       # no EventBridge locally
+AWS_ACCESS_KEY_ID=local
+AWS_SECRET_ACCESS_KEY=localsecret
+AWS_REGION=ap-southeast-1
+```
+Run the API, the worker and the frontend as in mode 2 (three terminals). The worker says
+`Listening on SQS (http://localhost:9324)` and creates the queues and dead-letter queues on first use. Watch queue
+depths at http://localhost:9325; list uploaded files with `curl "http://localhost:9000/lms-files?list-type=2"`.
+S3Mock keeps files in memory (gone when it stops). MinIO no longer publishes free Docker images, so S3Mock stands
+in for S3. To check the real SQS and S3 clients against these two:
+`LMS_LIVE_AWS_LOCAL=1 uv run --project backend pytest test/backend/core/test_aws_local_live.py`.
+
+**Deployed** on AWS (ECS on EC2). Once: secret in Secrets Manager → `terraform apply` in `deploy/aws` → GitHub
+OIDC role and repo variables (details under "Setting it up (once)" below). Then every release is
+`git tag v1.2.0 && git push --tags`.
+
+### Check that a mode works
+The same three checks for every mode (the API is on port 8000; on your machine the app itself is on 5173):
+
+1. **Health:** `curl -s http://localhost:8000/api/health` should give `"mode": "full"`, and:
+
+   | Mode | `queue` | `storage` | Worker's first log line says |
+   |---|---|---|---|
+   | 1 development | `inline` | `up` | (no worker needed) |
+   | 2 single | `up` | `up` | `queue_backend=bullmq storage=local` |
+   | 3 scalable | `up` | `up` | `queue_backend=sqs storage=s3`, then `Listening on SQS` |
+
+   `fallback` means the app runs, but the queue or storage could not be reached (check the URL or the container).
+2. **A job goes through:** sign in as the demo admin, open **Helpers** and start "Course from a brief". The run
+   should show **Needs a person** within seconds. In modes 2 and 3 the worker log shows `START agents.run`
+   then `DONE agents.run`.
+3. **Files:** upload a file in the Knowledge Hub and open it again. In mode 3 on your machine it is listed by
+   `curl "http://localhost:9000/lms-files?list-type=2"` under `knowledge/`.
+
+Each API call also writes one line to the API log (`GET /api/... -> 200 in 34 ms`), so `logs -f` shows what happens.
+
+### Stopping
+`docker compose -f <file> down` stops a stack and keeps its data. Adding `-v` also **deletes** the volumes
+(uploads, Redis jobs).
 
 ## Configuration (environment variables, prefix `LMS_`)
 | Variable | Example | Purpose |

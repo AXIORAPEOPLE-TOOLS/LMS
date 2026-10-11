@@ -19,18 +19,20 @@ test.describe('Manager', () => {
 })
 
 test.describe('Admin', () => {
-  test('assign training: preview first, then send with undo', async ({ page }) => {
+  test('assign training: check the list first, then send with undo', async ({ page }) => {
     await signIn(page, 'admin@example.com')
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'What do you want to do?' })).toBeVisible()
     await expect(page.getByText('Live today')).toBeVisible()
+    // Core flow A4: its own page. Skill -> course -> who (everyone whose role needs the skill) -> check the list -> send.
     await page.getByRole('button', { name: /Assign training/ }).click()
-    const dialog = page.getByRole('dialog')
-    await dialog.getByLabel('Course').selectOption({ label: 'Clear verbal communication' })
-    await dialog.getByLabel('Role').selectOption({ label: 'Inside Sales Executive' })
-    await dialog.getByRole('button', { name: 'Preview' }).click()
-    await expect(dialog.getByText('Message preview')).toBeVisible()
-    await dialog.getByRole('button', { name: /Send to \d+ people/ }).click()
+    await expect(page.getByRole('heading', { name: 'Assign training' })).toBeVisible()
+    await page.getByRole('combobox', { name: 'Skill', exact: true }).selectOption({ label: 'Verbal communication' })
+    // The only published course for the skill is picked for you.
+    await expect(page.getByRole('combobox', { name: 'Course', exact: true })).toContainText('Clear verbal communication')
+    await page.getByRole('button', { name: 'See who gets it' }).click()
+    await expect(page.getByText(/Message: /)).toBeVisible()
+    await page.getByRole('button', { name: /Send to \d+ (person|people)/ }).click()
     await expect(page.getByText(/You can undo this/)).toBeVisible()
     await page.getByRole('button', { name: 'Undo' }).click()
     await expect(page.getByText(/Undone for \d+ people/)).toBeVisible()

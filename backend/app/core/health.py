@@ -59,9 +59,19 @@ async def _check_database() -> str:
 
 
 async def _check_queue() -> str:
-    from app.core.queue import BullMQQueue, get_queue
+    from app.core.queue import BullMQQueue, Queues, get_queue
 
     queue = get_queue()
+    from app.core.sqs_queue import SQSQueue
+
+    if isinstance(queue, SQSQueue):
+        if breaker("sqs").is_open:
+            return "fallback"
+        try:
+            await queue.url(Queues.NOTIFICATIONS)  # reachable and the queue exists
+        except Exception:
+            return "fallback"
+        return "up"
     if not isinstance(queue, BullMQQueue):
         return "inline"
     if breaker("redis").is_open:

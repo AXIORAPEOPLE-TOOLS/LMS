@@ -30,6 +30,11 @@ def test_each_profile_picks_its_queue_and_storage() -> None:
     assert (scalable.queue_backend, scalable.storage_backend) == ("sqs", "s3")
 
 
+def test_empty_values_follow_the_profile() -> None:
+    settings = Settings(_env_file=None, deploy_profile="single", redis_url="redis://x", queue_backend="", storage_backend=" ")
+    assert (settings.queue_backend, settings.storage_backend) == ("bullmq", "local")
+
+
 def test_a_part_can_be_overridden() -> None:
     settings = Settings(_env_file=None, queue_backend="sqs", sqs_endpoint_url="http://localhost:9324")
     assert settings.queue_backend == "sqs" and settings.storage_backend == "local"  # try ElasticMQ in development

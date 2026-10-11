@@ -27,8 +27,8 @@ test.describe('Learner (Asha)', () => {
 
   test('skill check: one question per screen, then level and rank band', async ({ page }) => {
     await signIn(page, 'asha@example.com')
-    await page.goto('/learn?tab=tests')
-    await page.getByRole('button', { name: 'Start' }).or(page.getByRole('link', { name: 'Start' })).first().click()
+    await page.goto('/learn?tab=tests')  // "To do": courses first, then the skill checks
+    await page.getByRole('link', { name: 'Start test' }).first().click()
     await expect(page.getByText('No pass or fail')).toBeVisible()
     await page.getByRole('button', { name: 'Start test' }).click()
     await expect(page.getByText(/Question 1 of/)).toBeVisible()

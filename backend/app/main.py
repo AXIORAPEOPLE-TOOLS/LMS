@@ -94,11 +94,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
             await asyncio.to_thread(migrate)
     if settings.seed_demo_data:
-        from app.seed.demo import seed_if_empty
+        from app.seed.demo import seed_on_start
 
-        async with database.session_factory() as session:
-            await seed_if_empty(session)
-            await session.commit()
+        await seed_on_start(database.session_factory)
     scheduler = None
     if settings.scheduler_enabled:
         from app.modules.scheduler.runner import Scheduler

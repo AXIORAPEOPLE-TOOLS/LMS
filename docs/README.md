@@ -12,7 +12,7 @@
 | [data-model.md](data-model.md) | Tables and how they relate |
 | [resilience.md](resilience.md) | Degraded modes: what happens when a service is down |
 | [testing.md](testing.md) | Test layout, how to run per feature, e2e before push |
-| [deployment.md](deployment.md) | Environments, configuration, Docker, CI/CD, single exe |
+| [deployment.md](deployment.md) | The three modes (development / single / scalable), how to run each step by step, configuration, AWS |
 | [changelog.md](changelog.md) | What changed, newest first |
 
 Also: [`../AGENTS.md`](../AGENTS.md) — the short rulebook for agents and new engineers.

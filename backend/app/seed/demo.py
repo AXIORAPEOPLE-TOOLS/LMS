@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
@@ -278,6 +279,24 @@ POSH_QUESTIONS = [
 
 def _questions(spec: list[tuple[str, list[str], int, str]], n: int) -> list[tuple[str, list[str], int, str]]:
     return [spec[i % len(spec)] for i in range(n)]
+
+
+# Several API processes (uvicorn workers, ECS tasks) start together on an empty database.
+SEED_LOCK_KEY = 7_315_604_211
+
+
+async def seed_on_start(session_factory: Any) -> bool:
+    """Seed once even when many processes start at the same moment.
+
+    A transaction-level advisory lock (works through Neon's pooler, unlike a session lock) lets the first
+    process seed; the others wait for its commit, then find the data and skip.
+    """
+    async with session_factory() as session:
+        if session.bind.dialect.name == "postgresql":
+            await session.execute(sql_text("SELECT pg_advisory_xact_lock(:key)"), {"key": SEED_LOCK_KEY})
+        seeded = await seed_if_empty(session)
+        await session.commit()
+        return seeded
 
 
 async def seed_if_empty(session: AsyncSession) -> bool:

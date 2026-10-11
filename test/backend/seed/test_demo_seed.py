@@ -70,3 +70,23 @@ async def test_demo_matches_the_deck_story(client: AsyncClient, seeded: None) ->
     meera = await _login(client, "meera@example.com")
     hub = (await client.get("/knowledge/library", headers=meera)).json()
     assert hub["total"] >= 20
+
+
+async def test_many_processes_starting_together_seed_once(database: Database) -> None:
+    """Uvicorn workers / ECS tasks start at the same moment on an empty database (PostgreSQL: advisory lock)."""
+    import asyncio
+
+    from sqlalchemy import func, select
+
+    from app.modules.identity.models import User
+    from app.modules.workflows.models import Workflow
+    from app.seed.demo import seed_on_start
+
+    if database.engine.dialect.name != "postgresql":
+        pytest.skip("concurrent start needs PostgreSQL (CI job / TEST_DATABASE_URL)")
+    results = await asyncio.gather(*(seed_on_start(database.session_factory) for _ in range(4)))
+    assert results.count(True) == 1  # one process seeded, three found it done
+    async with database.session_factory() as s:
+        codes = (await s.scalars(select(Workflow.code))).all()
+        assert len(codes) == len(set(codes))
+        assert int(await s.scalar(select(func.count()).select_from(User)) or 0) > 0

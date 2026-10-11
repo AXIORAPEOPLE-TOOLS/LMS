@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     s3_endpoint_url: str | None = None  # MinIO / LocalStack locally
     max_upload_mb: int = 25
 
+    @field_validator("queue_backend", "storage_backend", mode="before")
+    @classmethod
+    def _empty_means_profile(cls, value: object) -> object:
+        # LMS_QUEUE_BACKEND= (empty, as in .env.example) means "follow LMS_DEPLOY_PROFILE".
+        return None if isinstance(value, str) and not value.strip() else value
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

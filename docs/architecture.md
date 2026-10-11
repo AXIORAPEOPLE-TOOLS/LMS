@@ -18,8 +18,12 @@
                                                                                        └─────────────────┘
 ```
 - **API** handles requests, writes to Postgres, and *defers* slow work as jobs.
-- **Worker** (`python -m app.worker`) consumes BullMQ queues (`notifications`, `authoring`, `reports`, `scheduled`) and runs the scheduler (daily/weekly tasks).
-- If Redis is down the API runs jobs inline; if the worker is not running in dev, set `LMS_QUEUE_BACKEND=inline`.
+- **Worker** (`python -m app.worker`) consumes queues (`notifications`, `authoring`, `reports`, `scheduled`) and runs the scheduler (daily/weekly tasks).
+- **Deployment profiles (`LMS_DEPLOY_PROFILE`)**:
+  - `development`: jobs run inline in the API process, local file storage.
+  - `single`: worker consumes BullMQ on Redis, local volume file storage.
+  - `scalable`: worker long-polls AWS SQS, file storage in S3, EventBridge triggers scheduled ticks, autoscaling on ECS (see `docs/deployment.md`).
+- If Redis is down in `single` profile, the API gracefully falls back to running jobs inline.
 
 ## Backend layers (per module)
 ```

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-11 — Every mode tested for real (Docker), three fixes
+- Tested: image build; one-container mode and single mode (API + worker + Redis) on PostgreSQL; scalable mode with the real SQS/S3 clients against ElasticMQ + S3Mock (queues, retries, dead-letter, long delays, uploads); migrations up/down/up and all backend tests on PostgreSQL 17.
+- Fix: several API processes starting together on an empty database crashed one of them (duplicate default workflows). First-start seeding now takes a PostgreSQL transaction lock: one seeds, the others wait and skip.
+- Fix: `LMS_QUEUE_BACKEND=` / `LMS_STORAGE_BACKEND=` left empty (as `.env.example` says) were rejected; empty now means "follow the profile".
+- Fix: the health page now checks SQS (it showed "inline" in the scalable profile).
+- `compose.aws-local.yml` uses S3Mock instead of MinIO (MinIO stopped publishing free images); images pinned. New opt-in live test `test_aws_local_live.py`.
+- Docs: `deployment.md` "Check that a mode works" for the three modes, each "on your machine" and "deployed" (health, a job through the queue, a file upload); `testing.md` records which modes were checked.
+- Tests: two end-to-end tests updated for the new screens (assign training is its own page; the skill check is started from "Start test" in To do). Backend 167 passed, e2e 24 passed.
+
 ## 2026-10-10 — Three deploy profiles: development, single, scalable (AWS)
 - `LMS_DEPLOY_PROFILE` picks the queue, file storage and scheduler; each part can be overridden; a profile missing something stops at start with a plain message.
 - **SQS queue** (`app/core/sqs_queue.py`): batches of 10, dead-letter queues, growing retry delays, long jobs kept hidden while running, delays over 15 minutes, graceful stop; the worker consumes BullMQ or SQS with the same START/DONE/FAILED log and a shared per-second delivery cap.
