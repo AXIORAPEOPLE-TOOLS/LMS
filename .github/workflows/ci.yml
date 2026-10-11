@@ -117,7 +117,7 @@ jobs:
       - name: Type check and build
         working-directory: frontend
         run: pnpm build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist
@@ -188,7 +188,7 @@ jobs:
       - name: Run (starts its own backend on SQLite and the Vite dev server)
         working-directory: test/e2e
         run: pnpm test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
