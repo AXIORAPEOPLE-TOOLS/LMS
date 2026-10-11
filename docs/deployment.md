@@ -218,6 +218,7 @@ Shared: Neon (pooled URL) · S3 for uploads · Upstash Redis (rate limits, locks
    `ecs:Describe*`, `iam:PassRole` on the task roles). In GitHub: secret `AWS_DEPLOY_ROLE_ARN`; variables
    `AWS_REGION`, `ECS_CLUSTER`, `ECR_REPOSITORY`; an environment `production` (add reviewers for an approval step).
 4. Point your domain at the load balancer (`terraform output load_balancer_dns`) and set `certificate_arn` for HTTPS.
+Until the three variables exist, "Run workflow" still runs every CI check, then shows "Deploy skipped: AWS is not set up yet" instead of failing.
 
 ### Each deploy (`git tag v1.2.0 && git push --tags`, or "Run workflow")
 All CI checks → build the ARM64 image → push to ECR → **one migration task** (stops the deploy if it fails) →

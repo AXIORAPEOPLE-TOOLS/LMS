@@ -23,8 +23,18 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
+  # AWS not set up yet (no repo variables): say so instead of failing at the AWS login step.
+  not-set-up:
+    needs: ci
+    if: ${{ vars.AWS_REGION == '' || vars.ECS_CLUSTER == '' || vars.ECR_REPOSITORY == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::notice title=Deploy skipped::AWS is not set up yet. Add repo variables AWS_REGION, ECS_CLUSTER, ECR_REPOSITORY and the secret AWS_DEPLOY_ROLE_ARN (docs/deployment.md, 'Setting it up (once)')."
+
   deploy:
     needs: ci
+    if: ${{ vars.AWS_REGION != '' && vars.ECS_CLUSTER != '' && vars.ECR_REPOSITORY != '' }}
     runs-on: ubuntu-latest
     environment: production # add required reviewers in GitHub settings for a manual approval step
     timeout-minutes: 40

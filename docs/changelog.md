@@ -10,6 +10,7 @@
 - Tests: two end-to-end tests updated for the new screens (assign training is its own page; the skill check is started from "Start test" in To do). Backend 167 passed, e2e 24 passed.
 - CI: a deploy's own CI run no longer cancels the CI run of the same push (separate concurrency groups). Dependabot groups workflow action updates and skips `@types/node` majors.
 - E2E: the Knowledge Hub search test no longer fails when the item also shows in the side list (seen in CI on the desktop run).
+- Deploy: until the AWS variables are set, the workflow runs CI and then skips the deploy with a notice instead of failing at the AWS login. Merged Dependabot updates: redis 8.1, Playwright 1.64, 12 workflow actions.
 
 ## 2026-10-10 — Three deploy profiles: development, single, scalable (AWS)
 - `LMS_DEPLOY_PROFILE` picks the queue, file storage and scheduler; each part can be overridden; a profile missing something stops at start with a plain message.
