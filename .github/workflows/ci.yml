@@ -10,7 +10,7 @@ on:
   workflow_call: # the deploy workflow runs every check first
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}  # a deploy's own CI run must not cancel the push run
   cancel-in-progress: true
 
 permissions:

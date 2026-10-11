@@ -12,9 +12,16 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Types follow the Node version the app runs on (24, deploy/Dockerfile); move both together.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
   - package-ecosystem: npm
     directory: /test/e2e
     schedule: { interval: monthly }
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+    groups:
+      actions:
+        patterns: ["*"]  # one pull request for all workflow action updates

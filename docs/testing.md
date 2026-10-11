@@ -51,7 +51,7 @@ Runs on every push to `main` and every pull request:
 | Frontend | `pnpm lint`, `tsc` + `vite build`; the build is kept as an artifact |
 | End-to-end | Playwright on phone and desktop (own SQLite backend + Vite); report uploaded on failure |
 
-Same checks locally: `bash deploy/ci/check.sh` (add `--e2e` before pushing). Dependabot opens weekly update PRs.
+Same checks locally: `bash deploy/ci/check.sh` (add `--e2e` before pushing). Dependabot opens update PRs (backend and frontend weekly, e2e and workflow actions monthly, actions grouped into one PR); merge one when its CI is green. `@types/node` majors are skipped: they move together with the Node version in the Dockerfile.
 
 ## Live checks against local stand-ins (opt-in)
 `docker compose -f deploy/compose.aws-local.yml up -d`, then
