@@ -77,7 +77,8 @@ test.describe('Knowledge Hub', () => {
     await page.goto('/knowledge')
     await page.getByLabel('Search or ask').fill('refund')
     await page.getByRole('button', { name: 'Search', exact: true }).click()
-    await expect(page.getByRole('link', { name: /Refund process/ })).toBeVisible()
+    // .first(): the search result; after the phone run opened it, the item is also listed in a side list.
+    await expect(page.getByRole('link', { name: /Refund process/ }).first()).toBeVisible()
     await page.getByLabel('Search or ask').fill('How many days are refunds allowed after delivery?')
     await page.getByRole('button', { name: 'Ask' }).click()
     await expect(page.getByText('Answer from the Knowledge Hub')).toBeVisible()
