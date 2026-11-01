@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -479,7 +479,7 @@ wheels = [
 
 [[package]]
 name = "bullmq"
-version = "3.3.3"
+version = "3.4.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "croniter" },
@@ -487,9 +487,9 @@ dependencies = [
     { name = "redis" },
     { name = "semver" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/10/ed/64e012699a26a6aabd672ec8ce24b0d7923509da97a0c1ca18b0c4065ea3/bullmq-3.3.3.tar.gz", hash = "sha256:89c59fc01106371d496eee2fe07e727c4a91e8e8790193a47aab4dd6a8f50cfa", size = 887470, upload-time = "2026-10-10T05:40:08.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5d/3d/d6dcf29efdc9c5d46c3774a2e01f739c7dd108e5fabc63173919b83e786c/bullmq-3.4.6.tar.gz", hash = "sha256:9b80e96dc866ccc434379fbb1d72a1f579292546d61af14c6f6383cc05727e48", size = 921209, upload-time = "2026-10-28T15:27:05.336Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/56/f2e66a320098735edece0b80767f08a2e164384114f34460a8141c13fd3d/bullmq-3.3.3-py3-none-any.whl", hash = "sha256:b7046e32424e31be6a7f41a3d45476b7bd989653f01db53ef128231cd73d3e73", size = 1033111, upload-time = "2026-10-10T05:40:06.759Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/92/67a39a91ca0314bf036aae15b7ab6af18cf98f7898f196dc8ac9082c62e1/bullmq-3.4.6-py3-none-any.whl", hash = "sha256:764f5bb0d4f696031f9ab2b285355e9fe0ec889e3023aa35a36474b4220af7a8", size = 1084873, upload-time = "2026-10-28T15:27:04.103Z" },
 ]
 
 [[package]]
